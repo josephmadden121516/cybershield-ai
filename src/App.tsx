@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
@@ -41,6 +43,7 @@ interface SecurityReport {
 }
 
 function App() {
+  const [activeSection, setActiveSection] = useState('overview')
   const [message, setMessage] = useState(
     'Your business email will be disabled today. Verify your account immediately using this link.'
   )
@@ -60,6 +63,11 @@ function App() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [authMessage, setAuthMessage] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
+  const [faceLockMessage, setFaceLockMessage] = useState('')
+  const [faceLockBusy, setFaceLockBusy] = useState(false)
+  const faceLockBusyRef = useRef(false)
+  const faceLockMountedRef = useRef(false)
 
   useEffect(() => {
     if (!supabase) return
@@ -80,6 +88,115 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+
+  // Protect the native workspace on launch and whenever the app resumes.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let cancelled = false
+    let resumeHandle: { remove: () => Promise<void> } | undefined
+
+    async function unlockWithBiometrics() {
+      if (cancelled || faceLockBusyRef.current) return
+
+      faceLockBusyRef.current = true
+      setFaceLockBusy(true)
+      setFaceLockMessage('')
+
+      try {
+        await BiometricAuth.authenticate({
+          reason: 'Unlock your ShieldPocket workspace',
+          cancelTitle: 'Stay locked',
+          iosFallbackTitle: 'Use device passcode',
+          allowDeviceCredential: true,
+        })
+
+        if (!cancelled) {
+          setIsLocked(false)
+          setFaceLockMessage('')
+        }
+      } catch {
+        if (!cancelled) {
+          setIsLocked(true)
+          setFaceLockMessage(
+            'Authentication was not completed. Try again or use your device passcode if offered.'
+          )
+        }
+      } finally {
+        faceLockBusyRef.current = false
+        if (!cancelled) setFaceLockBusy(false)
+      }
+    }
+
+    async function initializeFaceLock() {
+      setIsLocked(true)
+      setFaceLockMessage('')
+
+      try {
+        // Required before registering the resume listener.
+        await BiometricAuth.checkBiometry()
+        if (cancelled) return
+
+        resumeHandle = await BiometricAuth.addResumeListener(() => {
+          if (cancelled) return
+          setIsLocked(true)
+          void unlockWithBiometrics()
+        })
+
+        if (cancelled) {
+          await resumeHandle.remove()
+          return
+        }
+
+        await unlockWithBiometrics()
+      } catch {
+        if (!cancelled) {
+          setIsLocked(true)
+          setFaceLockMessage(
+            'Biometric protection could not start. Check Face ID and device passcode settings, then retry.'
+          )
+        }
+      }
+    }
+
+    void initializeFaceLock()
+
+    return () => {
+      cancelled = true
+      faceLockMountedRef.current = false
+      if (resumeHandle) void resumeHandle.remove()
+    }
+  }, [])
+
+  async function retryFaceLock() {
+    setIsLocked(true)
+    setFaceLockMessage('')
+    // The effect owns the native authentication lifecycle.
+    // A page reload is not needed to retry authentication.
+    if (faceLockBusyRef.current) return
+
+    faceLockBusyRef.current = true
+    setFaceLockBusy(true)
+    try {
+      await BiometricAuth.authenticate({
+        reason: 'Unlock your ShieldPocket workspace',
+        cancelTitle: 'Stay locked',
+        iosFallbackTitle: 'Use device passcode',
+        allowDeviceCredential: true,
+      })
+      setIsLocked(false)
+      setFaceLockMessage('')
+    } catch {
+      setIsLocked(true)
+      setFaceLockMessage(
+        'Authentication was not completed. Check your Face ID or passcode settings and try again.'
+      )
+    } finally {
+      faceLockBusyRef.current = false
+      setFaceLockBusy(false)
+    }
+  }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -148,6 +265,64 @@ function App() {
         error instanceof Error
           ? error.message
           : 'Passkey sign-in failed. You can still use your email and password.'
+      )
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  async function handleLockPasswordSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase) {
+      setFaceLockMessage('Authentication is not configured yet.')
+      return
+    }
+
+    setAuthLoading(true)
+    setFaceLockMessage('')
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      if (error) throw error
+
+      setIsLocked(false)
+      setFaceLockMessage('')
+      setAuthMessage('Signed in successfully.')
+    } catch (error) {
+      setFaceLockMessage(
+        error instanceof Error
+          ? error.message
+          : 'Email and password sign-in failed. Please try again.'
+      )
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  async function handleLockPasskeySignIn() {
+    if (!supabase) {
+      setFaceLockMessage('Authentication is not configured yet.')
+      return
+    }
+
+    setAuthLoading(true)
+    setFaceLockMessage('Follow your device prompt to sign in with a passkey.')
+
+    try {
+      const { error } = await supabase.auth.signInWithPasskey()
+      if (error) throw error
+
+      setIsLocked(false)
+      setFaceLockMessage('')
+      setAuthMessage('Signed in with your passkey successfully.')
+    } catch (error) {
+      setFaceLockMessage(
+        error instanceof Error
+          ? error.message
+          : 'Passkey sign-in failed. You can use email and password instead.'
       )
     } finally {
       setAuthLoading(false)
@@ -489,18 +664,18 @@ const securityStatus =
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon">✓</div>
+          <img className="brand-logo" src="/ShieldPocket.png" alt="ShieldPocket logo" />
           <div>
-            <strong>CyberShield AI</strong>
-            <small>Small business security</small>
+            <strong>ShieldPocket</strong>
+            <small>Secure Defense</small>
           </div>
         </div>
 
         <p className="nav-label">WORKSPACE</p>
-        <div className="nav-item active">▦ &nbsp; Overview</div>
-        <div className="nav-item">⌕ &nbsp; Threat analyzer</div>
-        <div className="nav-item">✓ &nbsp; Security checkup</div>
-        <div className="nav-item">↗ &nbsp; Incident response</div>
+        <button type="button" className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}>▦ &nbsp; Overview</button>
+        <button type="button" className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { setActiveSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
+        <button type="button" className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>✓ &nbsp; Security checkup</button>
+        <button type="button" className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { setActiveSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>↗ &nbsp; Incident response</button>
 
         <div className="sidebar-note">
           <strong>Security starts here.</strong>
@@ -526,7 +701,7 @@ const securityStatus =
         <section className="content-card auth-card">
           <div className="card-heading">
             <div>
-              <h2>{user ? 'Your account' : authMode === 'signin' ? 'Sign in to CyberShield AI' : 'Create your account'}</h2>
+              <h2>{user ? 'Your account' : authMode === 'signin' ? 'Sign in to ShieldPocket' : 'Create your ShieldPocket account'}</h2>
               <p>
                 {user
                   ? 'You are signed in.'
@@ -670,7 +845,7 @@ const securityStatus =
           </article>
         </section>
 
-        <section className="content-card">
+        <section id="threat-analyzer" className="content-card">
           <div className="card-heading">
             <div>
               <h2>Suspicious message analyzer</h2>
@@ -829,7 +1004,7 @@ const securityStatus =
           )}
         </section>
 
-        <section className="content-card security-card">
+        <section id="security-checkup" className="content-card security-card">
           <div className="card-heading">
             <div>
               <h2>Small-business security checkup</h2>
@@ -948,11 +1123,11 @@ const securityStatus =
         </section>
 
 
-        <section className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
+        <section id="incident-response" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
-            <summary>What is CyberShield AI?</summary>
-            <p>CyberShield AI is a cybersecurity copilot prototype that helps small businesses recognize suspicious messages, review common security practices, and learn general incident-response steps.</p>
+            <summary>What is ShieldPocket?</summary>
+            <p>ShieldPocket is a cybersecurity copilot prototype that helps small businesses recognize suspicious messages, review common security practices, and learn general incident-response steps.</p>
           </details>
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>How does the threat analyzer work?</summary>
@@ -967,7 +1142,7 @@ const securityStatus =
             <p>Message analysis runs locally in this prototype. Avoid entering passwords, verification codes, financial details, or other sensitive information. Data handling may differ when saving reports or using connected services in other versions.</p>
           </details>
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
-            <summary>Can CyberShield AI guarantee a message is safe?</summary>
+            <summary>Can ShieldPocket guarantee a message is safe?</summary>
             <p>No. A low-warning result does not prove a message is safe. Verify unexpected requests through a trusted, independent contact method before clicking links, opening attachments, sharing information, or sending money.</p>
           </details>
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
@@ -981,9 +1156,80 @@ const securityStatus =
         </section>
 
         <footer>
-          CyberShield AI · Hackathon prototype · Demo guidance only
+          ShieldPocket · Hackathon prototype · Demo guidance only
         </footer>
       </main>
+      {isLocked && Capacitor.isNativePlatform() && (
+        <div className="face-lock-overlay" role="dialog" aria-modal="true" aria-labelledby="face-lock-title">
+          <div className="face-lock-card">
+            <div className="face-lock-symbol" aria-hidden="true">✓</div>
+            <p className="face-lock-eyebrow">SHIELDPOCKET</p>
+            <h1 id="face-lock-title">Workspace locked</h1>
+            <p>Authenticate to access your security workspace and saved reports.</p>
+
+            {faceLockMessage && <p className="face-lock-message" role="alert">{faceLockMessage}</p>}
+
+            <form
+              onSubmit={handleLockPasswordSignIn}
+              style={{ display: 'grid', gap: '10px', marginTop: '16px' }}
+            >
+              <label style={{ display: 'grid', gap: '6px', textAlign: 'left' }}>
+                Email address
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  disabled={authLoading || faceLockBusy}
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color, #8797a5)', background: 'transparent', color: 'inherit' }}
+                />
+              </label>
+
+              <label style={{ display: 'grid', gap: '6px', textAlign: 'left' }}>
+                Password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  disabled={authLoading || faceLockBusy}
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color, #8797a5)', background: 'transparent', color: 'inherit' }}
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="primary-button face-lock-button"
+                disabled={authLoading || faceLockBusy}
+              >
+                {authLoading ? 'Signing in…' : 'Unlock with email and password'}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              className="primary-button face-lock-button"
+              onClick={() => void handleLockPasskeySignIn()}
+              disabled={authLoading || faceLockBusy}
+              style={{ marginTop: '10px' }}
+            >
+              {authLoading ? 'Waiting for passkey…' : 'Unlock with passkey'}
+            </button>
+
+            <button
+              type="button"
+              className="primary-button face-lock-button"
+              onClick={() => void retryFaceLock()}
+              disabled={faceLockBusy || authLoading}
+              style={{ marginTop: '10px' }}
+            >
+              {faceLockBusy ? 'Waiting for authentication…' : 'Unlock with Face ID'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

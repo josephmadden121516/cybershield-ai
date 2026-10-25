@@ -1,15 +1,10 @@
-.brand-icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  place-items: center;
-  color: #062b28;
-  background: linear-gradient(145deg, #5eead4, #14b8a6);
-  border-radius: 13px;
-  font-size: 26px;
-  font-weight: 900;
-  box-shadow: 0 5px 24px #14b8a625;
+.brand-logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  object-fit: contain;
+  border-radius: 10px;
 }
 
 .brand strong,
@@ -477,4 +472,90 @@ footer {
   font-size: 12px;
   line-height: 1.6;
   opacity: 0.8;
+}
+
+/* Native Face ID lock screen */
+.face-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #06121b;
+  color: #e7f0f7;
+  text-align: center;
+}
+.face-lock-card {
+  width: min(100%, 390px);
+  padding: 30px 24px;
+  border: 1px solid #254657;
+  border-radius: 20px;
+  background: #102333;
+  box-shadow: 0 24px 80px #0008;
+}
+.face-lock-symbol {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 18px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #5eead4, #14b8a6);
+  color: #062b28;
+  font-size: 34px;
+  font-weight: 900;
+}
+.face-lock-eyebrow {
+  color: #79e6d5;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.face-lock-card h1 {
+  margin: 12px 0;
+  font-size: 27px;
+}
+.face-lock-card > p {
+  color: #b5c9d6;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.face-lock-card .face-lock-message {
+  color: #ffd18b;
+}
+.face-lock-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* Keep the native lock screen usable on short screens and with the keyboard open */
+.face-lock-overlay {
+  overflow-y: auto;
+  align-items: start;
+  -webkit-overflow-scrolling: touch;
+}
+
+.face-lock-card {
+  margin: auto;
+}
+
+@media (max-height: 700px) {
+  .face-lock-overlay {
+    padding: 12px;
+  }
+
+  .face-lock-card {
+    padding: 20px 18px;
+  }
+.face-lock-symbol {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    font-size: 28px;
+  }
+
+  .face-lock-card h1 {
+    font-size: 23px;
+  }
 }
