@@ -140,7 +140,7 @@ export default function VoiceAssistant({
     }
   }, [])
 
-  function speak(text: string) {
+  async function speak(text: string) {
     if (!('speechSynthesis' in window)) {
       setStatus(
         language === 'es'
@@ -153,24 +153,52 @@ export default function VoiceAssistant({
     const synth = window.speechSynthesis
     synth.cancel()
 
+    let voices = synth.getVoices()
+    if (voices.length === 0) {
+      voices = await new Promise<SpeechSynthesisVoice[]>((resolve) => {
+        const timeout = window.setTimeout(() => {
+          synth.removeEventListener('voiceschanged', handleVoicesChanged)
+          resolve(synth.getVoices())
+        }, 1500)
+
+        function handleVoicesChanged() {
+          window.clearTimeout(timeout)
+          synth.removeEventListener('voiceschanged', handleVoicesChanged)
+          resolve(synth.getVoices())
+        }
+
+        synth.addEventListener('voiceschanged', handleVoicesChanged)
+      })
+    }
+
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = language === 'es' ? 'es-MX' : 'en-US'
-    utterance.rate = 0.96
-    utterance.pitch = 1.04
+    utterance.rate = language === 'es' ? 1.02 : 0.96
+    utterance.pitch = language === 'es' ? 1.12 : 1.04
 
     const chooseVoice = () => {
-      const voices = synth.getVoices()
-
       if (language === 'es') {
-        return (
-          voices.find(
-            (voice) =>
-              /^es[-_]MX$/i.test(voice.lang) &&
-              /paulina/i.test(voice.name)
-          ) ??
-          voices.find((voice) => /^es[-_]MX$/i.test(voice.lang)) ??
-          voices.find((voice) => /^es([_-]|$)/i.test(voice.lang))
+        const mexicanVoices = voices.filter((voice) =>
+          /^es[-_]MX$/i.test(voice.lang)
         )
+        const preferredNames = [
+          'paulina',
+          'flo',
+          'sandy',
+          'shelley',
+          'monica',
+          'lucia',
+          'sofia',
+          'carmen',
+        ]
+
+        return preferredNames
+          .map((name) =>
+            mexicanVoices.find((voice) =>
+              voice.name.toLocaleLowerCase().includes(name)
+            )
+          )
+          .find((voice) => voice !== undefined)
       }
 
       return (
@@ -185,10 +213,20 @@ export default function VoiceAssistant({
     }
 
     const voice = chooseVoice()
+    if (language === 'es' && !voice) {
+      setStatus(
+        'No hay una voz femenina de español de México disponible. Instala una voz como Paulina en los ajustes de voz del dispositivo.'
+      )
+      return
+    }
     if (voice) utterance.voice = voice
 
     utterance.onstart = () =>
-      setStatus(language === 'es' ? 'Sophia está hablando…' : 'Sophia is speaking…')
+      setStatus(
+        language === 'es'
+          ? `Sophia está hablando con la voz ${voice?.name ?? 'seleccionada'}…`
+          : 'Sophia is speaking…'
+      )
 
     synth.speak(utterance)
 
