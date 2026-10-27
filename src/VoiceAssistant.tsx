@@ -5,6 +5,8 @@ import { authenticateWithBiometrics } from './biometricAuth'
 import './VoiceAssistant.css'
 
 interface VoiceAssistantProps {
+  language: 'es' | 'en'
+  onLanguageChange: (language: 'es' | 'en') => void
   onNavigate: (section: string) => void
   onAnalyzeMessage: (text: string) => void
   onSetMessage: (text: string) => void
@@ -43,11 +45,12 @@ type ListeningMode = 'command' | 'chat'
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
 
 export default function VoiceAssistant({
+  language,
+  onLanguageChange,
   onNavigate,
   onAnalyzeMessage,
   onSetMessage,
 }: VoiceAssistantProps) {
-  const [language, setLanguage] = useState<'es' | 'en'>('es')
   const [command, setCommand] = useState('')
   const [status, setStatus] = useState('Escribe un comando o usa el micrófono.')
   const [listening, setListening] = useState(false)
@@ -572,7 +575,7 @@ export default function VoiceAssistant({
 
       <div className="voice-language-picker">
         <label htmlFor="sophia-language">{language === 'es' ? 'Idioma de Sophia' : "Sophia's language"}</label>
-        <select id="sophia-language" value={language} onChange={(event) => setLanguage(event.target.value as 'es' | 'en')}>
+        <select id="sophia-language" value={language} onChange={(event) => onLanguageChange(event.target.value as 'es' | 'en')}>
           <option value="es">Español (México)</option>
           <option value="en">English (US)</option>
         </select>

@@ -1,0 +1,71 @@
+.security-activity .card-heading {
+  margin-bottom: 16px;
+}
+
+.security-activity-empty,
+.security-activity-privacy,
+.security-activity-warning {
+  color: #9cb0c3;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.security-activity-list {
+  display: grid;
+  gap: 0;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.security-activity-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 11px;
+  padding: 12px 0;
+  border-bottom: 1px solid #26394b;
+}
+
+.security-activity-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.security-activity-analysis {
+  background: #193550;
+  color: #9ed5ff;
+}
+
+.security-activity-checklist {
+  background: #15362f;
+  color: #a1eadb;
+}
+
+.security-activity-item strong {
+  color: #dce8f1;
+  font-size: 12px;
+}
+
+.security-activity-item p {
+  margin: 4px 0;
+  color: #9cb0c3;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.security-activity-item time {
+  color: #71879a;
+  font-size: 10px;
+}
+
+.security-activity-privacy {
+  margin: 12px 0 0;
+}
+
+.security-activity-warning {
+  color: #ffdc91;
+}

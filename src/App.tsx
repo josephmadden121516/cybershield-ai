@@ -9,6 +9,15 @@ import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
 import { PhishingResponseGuide } from './components/PhishingResponseGuide'
+import {
+  SecurityActivityTimeline,
+  type SecurityActivityEvent,
+} from './components/SecurityActivityTimeline'
+import {
+  clearSecurityActivityEvents,
+  loadSecurityActivityEvents,
+  saveSecurityActivityEvents,
+} from './components/securityActivityStorage'
 
 const securityTasks = [
   {
@@ -154,6 +163,7 @@ interface SecurityReport {
 
 function App() {
   const [activeSection, setActiveSection] = useState('overview')
+  const [assistantLanguage, setAssistantLanguage] = useState<'es' | 'en'>('es')
   const [message, setMessage] = useState(
     'Your business email will be disabled today. Verify your account immediately using this link.'
   )
@@ -163,6 +173,10 @@ function App() {
   const [analysisRiskLevel, setAnalysisRiskLevel] =
     useState<'low' | 'review' | 'high' | null>(null)
   const [analysisSummary, setAnalysisSummary] = useState('')
+  const [activityEvents, setActivityEvents] = useState<SecurityActivityEvent[]>(
+    () => loadSecurityActivityEvents('guest')
+  )
+  const [activityStorageError, setActivityStorageError] = useState(false)
   const [reports, setReports] = useState<SecurityReport[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
   const [reportMessage, setReportMessage] = useState('')
@@ -191,11 +205,14 @@ function App() {
         return
       }
       setUser(data.session?.user ?? null)
+      setActivityEvents(loadSecurityActivityEvents(data.session?.user.id ?? 'guest'))
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
+        setActivityEvents(loadSecurityActivityEvents(session?.user.id ?? 'guest'))
+        setActivityStorageError(false)
       }
     )
 
@@ -562,6 +579,39 @@ const [checklistReadyForUserId, setChecklistReadyForUserId] =
     nextRecommendedTask?.description ??
     'All baseline tasks are complete. Review your controls regularly to make sure they remain effective.'
 
+  function recordActivity(
+    type: SecurityActivityEvent['type'],
+    title: string,
+    detail: string
+  ) {
+    const ownerId = user?.id ?? 'guest'
+    const event: SecurityActivityEvent = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      ownerId,
+      type,
+      title,
+      detail,
+      occurredAt: new Date().toISOString(),
+    }
+    const nextEvents = [event, ...activityEvents].slice(0, 30)
+    setActivityEvents(nextEvents)
+    const saved = saveSecurityActivityEvents(ownerId, nextEvents)
+    setActivityStorageError(!saved)
+    if (!saved) {
+      console.error('Could not save local security activity history.')
+    }
+  }
+
+  function clearActivity() {
+    const ownerId = user?.id ?? 'guest'
+    setActivityEvents([])
+    const cleared = clearSecurityActivityEvents(ownerId)
+    setActivityStorageError(!cleared)
+    if (!cleared) {
+      console.error('Could not clear local security activity history.')
+    }
+  }
+
   function analyzeMessage(textToAnalyze: string = message) {
     const text = textToAnalyze.toLowerCase()
       .normalize('NFD')
@@ -752,6 +802,15 @@ if (suspiciousUrl) {
           'AI threat analysis completed.'
       )
       setResult(aiAnalysis)
+      recordActivity(
+        'analysis',
+        assistantLanguage === 'es'
+          ? 'Análisis de mensaje completado'
+          : 'Message analysis completed',
+        assistantLanguage === 'es'
+          ? `Evaluación de IA: ${riskLevel === 'high' ? 'riesgo alto' : riskLevel === 'review' ? 'requiere revisión' : 'riesgo bajo'}. No se guardó el texto del mensaje en este historial.`
+          : `AI assessment: ${riskLevel === 'high' ? 'high risk' : riskLevel === 'review' ? 'needs review' : 'low risk'}. Message text was not saved in this history.`
+      )
       if (data?.alertStatus === 'created') {
         setReportMessage('High-severity alert saved to your account.')
       } else if (data?.alertError) {
@@ -762,6 +821,15 @@ if (suspiciousUrl) {
     } catch (error) {
       console.error('AI threat analysis failed; using local analysis.', error)
       analyzeMessage(trimmedMessage)
+      recordActivity(
+        'analysis',
+        assistantLanguage === 'es'
+          ? 'Análisis local de patrones completado'
+          : 'Local pattern analysis completed',
+        assistantLanguage === 'es'
+          ? 'El análisis de IA no estuvo disponible; solo se revisaron patrones de texto comunes. No se guardó el texto del mensaje en este historial.'
+          : 'AI analysis was unavailable; only common text patterns were checked. Message text was not saved in this history.'
+      )
       setReportMessage(
         'AI analysis was unavailable, so local pattern analysis was used instead.'
       )
@@ -836,10 +904,30 @@ if (suspiciousUrl) {
   }
 
   function toggleTask(index: number) {
+    const wasCompleted = completedTasks.includes(index)
     setCompletedTasks((previous) =>
-      previous.includes(index)
+      wasCompleted
         ? previous.filter((task) => task !== index)
         : [...previous, index]
+    )
+    recordActivity(
+      'checklist',
+      assistantLanguage === 'es'
+        ? wasCompleted
+          ? 'Tarea de seguridad desmarcada'
+          : 'Tarea de seguridad marcada'
+        : wasCompleted
+          ? 'Security task unchecked'
+          : 'Security task checked',
+      `${securityTasks[index].title} — ${
+        assistantLanguage === 'es'
+          ? wasCompleted
+            ? 'marcada como no completada por el usuario'
+            : 'marcada como completada por el usuario'
+          : wasCompleted
+            ? 'marked incomplete by the user'
+            : 'marked complete by the user'
+      }`
     )
   }
 
@@ -1059,6 +1147,8 @@ const securityGrade =
         </section>
 
         <VoiceAssistant
+          language={assistantLanguage}
+          onLanguageChange={setAssistantLanguage}
           onNavigate={(section) => {
             if (section === 'overview') {
               window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1233,6 +1323,13 @@ const securityGrade =
           </article>
         </section>
 
+        <SecurityActivityTimeline
+          language={assistantLanguage}
+          events={activityEvents}
+          storageError={activityStorageError}
+          onClear={clearActivity}
+        />
+
         <section id="threat-analyzer" className="content-card">
           <div className="card-heading">
             <div>
@@ -1328,6 +1425,7 @@ const securityGrade =
               {analysisRiskLevel && (
                 <PhishingResponseGuide
                   key={`${analysisRiskLevel}-${analysisSummary}`}
+                  language={assistantLanguage}
                   riskLevel={analysisRiskLevel}
                   findings={analysisFindings}
                 />
