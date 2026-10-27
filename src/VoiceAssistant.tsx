@@ -18,16 +18,27 @@ interface SpeechEventLike {
   results: ArrayLike<SpeechResult>
 }
 
+interface SpeechErrorLike {
+  error: string
+}
+
 interface SpeechRecognitionLike {
   lang: string
   continuous: boolean
   interimResults: boolean
   onresult: ((event: SpeechEventLike) => void) | null
-  onerror: (() => void) | null
+  onerror: ((event: SpeechErrorLike) => void) | null
   onend: (() => void) | null
   start: () => void
   stop: () => void
 }
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+type ListeningMode = 'command' | 'chat'
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
 
@@ -38,13 +49,14 @@ export default function VoiceAssistant({
 }: VoiceAssistantProps) {
   const [language, setLanguage] = useState<'es' | 'en'>('es')
   const [command, setCommand] = useState('')
-  const [status, setStatus] = useState(
-    'Type a command or use your microphone.'
-  )
+  const [status, setStatus] = useState('Escribe un comando o usa el micrófono.')
   const [listening, setListening] = useState(false)
+  const [listeningMode, setListeningMode] = useState<ListeningMode>('command')
   const [chatInput, setChatInput] = useState('')
-  const [chatReply, setChatReply] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatError, setChatError] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
+  const chatBusyRef = useRef(false)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const speakRef = useRef<(text: string) => void>(() => {})
   const [alertUserId, setAlertUserId] = useState<string | null>(null)
@@ -130,7 +142,11 @@ export default function VoiceAssistant({
 
   function speak(text: string) {
     if (!('speechSynthesis' in window)) {
-      setStatus('Speech playback is not supported in this browser.')
+      setStatus(
+        language === 'es'
+          ? 'La reproducción de voz no está disponible en este navegador.'
+          : 'Speech playback is not supported in this browser.'
+      )
       return
     }
 
@@ -193,12 +209,6 @@ export default function VoiceAssistant({
       .replace(/\s+/g, ' ')
       .trim()
 
-    // Debugging logs for browser console (F12)
-    console.log("--- SOPHIA COMMAND DEBUG ---")
-    console.log("Raw input:", rawCommand)
-    console.log("Normalized input:", normalized)
-    console.log("Language mode:", language)
-
     const spanish = language === 'es'
 
     if (!text) {
@@ -208,18 +218,31 @@ export default function VoiceAssistant({
 
     setCommand(text)
 
+    if (/^(help|commands|ayuda|comandos|show commands|muestra comandos)$/.test(normalized)) {
+      const helpMessage = spanish
+        ? 'Puedo abrir el analizador de amenazas, la revisión de seguridad, la respuesta a incidentes, el estado del dispositivo móvil, el firewall, la privacidad de cookies o el verificador de contraseñas. También puedes hacerme una pregunta de ciberseguridad.'
+        : 'I can open the Threat Analyzer, Security Checkup, Incident Response, Mobile Device Posture, Firewall Checkup, Cookie Privacy, or Password Checker. You can also ask me a cybersecurity question.'
+      setStatus(helpMessage)
+      speak(helpMessage)
+      return
+    }
+
     // Stop speaking command
-    if (/stop|quiet|silence|silencio|detener|deja/i.test(normalized)) {
+    if (/^(stop|quiet|silence|silencio|detener|callate|para)(\s+(speaking|talking|de hablar|de voz))?$/.test(normalized)) {
       window.speechSynthesis?.cancel()
       setStatus(spanish ? 'Respuesta de voz detenida.' : 'Voice response stopped.')
       return
     }
 
-    // Threat Analyzer (Matches "threat", "analizador", "amenazas")
+    const isNavigationRequest =
+      /^(open|show|go to|navigate to|take me to|abrir|abre|muestra|ir a|ve a|llevame a)\b/.test(
+        normalized
+      )
+
+    // Route explicit navigation requests; security questions should go to chat.
     if (
-      normalized.includes('threat') ||
-      normalized.includes('analizador') ||
-      normalized.includes('amenazas')
+      isNavigationRequest &&
+      /\b(threat|analyzer|analizador|amenazas)\b/.test(normalized)
     ) {
       onNavigate('threat-analyzer')
       setStatus(spanish ? 'Abrí el analizador de amenazas.' : 'Opened the Threat Analyzer.')
@@ -227,13 +250,9 @@ export default function VoiceAssistant({
       return
     }
 
-    // Security Checkup (Matches "security", "checkup", "checklist", "revision", "seguridad")
     if (
-      normalized.includes('security') ||
-      normalized.includes('checkup') ||
-      normalized.includes('checklist') ||
-      normalized.includes('revision') ||
-      normalized.includes('seguridad')
+      isNavigationRequest &&
+      /\b(security|checkup|checklist|revision|seguridad)\b/.test(normalized)
     ) {
       onNavigate('security-checkup')
       setStatus(spanish ? 'Abrí la revisión de seguridad.' : 'Opened the Security Checkup.')
@@ -241,12 +260,9 @@ export default function VoiceAssistant({
       return
     }
 
-    // Incident Response (Matches "incident", "response", "respuesta", "incidentes")
     if (
-      normalized.includes('incident') ||
-      normalized.includes('response') ||
-      normalized.includes('respuesta') ||
-      normalized.includes('incidentes')
+      isNavigationRequest &&
+      /\b(incident|response|respuesta|incidentes)\b/.test(normalized)
     ) {
       onNavigate('incident-response')
       setStatus(spanish ? 'Abrí la respuesta a incidentes.' : 'Opened Incident Response.')
@@ -254,11 +270,9 @@ export default function VoiceAssistant({
       return
     }
 
-    // Overview / Home (Matches "overview", "inicio", "resumen")
     if (
-      normalized.includes('overview') ||
-      normalized.includes('inicio') ||
-      normalized.includes('resumen')
+      isNavigationRequest &&
+      /\b(overview|home|inicio|resumen)\b/.test(normalized)
     ) {
       onNavigate('overview')
       setStatus(spanish ? 'Abrí el resumen.' : 'Opened Overview.')
@@ -266,10 +280,52 @@ export default function VoiceAssistant({
       return
     }
 
+    if (
+      isNavigationRequest &&
+      /\b(mobile|device|posture|movil|dispositivo)\b/.test(normalized)
+    ) {
+      onNavigate('mobile-device-posture')
+      setStatus(
+        spanish ? 'Abrí el estado del dispositivo móvil.' : 'Opened Mobile Device Posture.'
+      )
+      speak(
+        spanish ? 'Abriendo el estado del dispositivo móvil.' : 'Opening Mobile Device Posture.'
+      )
+      return
+    }
+
+    if (isNavigationRequest && /\b(firewall|cortafuegos)\b/.test(normalized)) {
+      onNavigate('firewall-checkup')
+      setStatus(spanish ? 'Abrí la revisión del firewall.' : 'Opened Firewall Checkup.')
+      speak(spanish ? 'Abriendo la revisión del firewall.' : 'Opening Firewall Checkup.')
+      return
+    }
+
+    if (isNavigationRequest && /\b(cookie|cookies|privacy|privacidad)\b/.test(normalized)) {
+      onNavigate('cookie-privacy')
+      setStatus(spanish ? 'Abrí la revisión de privacidad.' : 'Opened Cookie Privacy Checkup.')
+      speak(spanish ? 'Abriendo la revisión de privacidad.' : 'Opening Cookie Privacy Checkup.')
+      return
+    }
+
+    if (
+      isNavigationRequest &&
+      /\b(password|passwords|contrasena|contrasenas)\b/.test(normalized)
+    ) {
+      onNavigate('password-checker')
+      setStatus(spanish ? 'Abrí el verificador de contraseñas.' : 'Opened Password Checker.')
+      speak(spanish ? 'Abriendo el verificador de contraseñas.' : 'Opening Password Checker.')
+      return
+    }
+
     // Email Analysis match (Matches "analyze", "check", "analiza", "revisa", etc.)
-    const analysisMatch = text.match(
-      /^(?:(?:please|por favor)\s+)?(?:analyze|analyse|check|inspect|analiza|analizar|revisa|revisar|verifica|verificar)\s+(?:(?:this|este|esta)\s+)?(?:email|e-mail|message|text|correo|mensaje|texto)?\s*[:-]?\s*([\s\S]+)$/i
-    )
+    const analysisMatch =
+      text.match(
+        /^(?:(?:please|por favor)\s+)?(?:analyze|analyse|check|inspect|analiza|analizar|revisa|revisar|verifica|verificar)\s+(?:(?:this|este|esta)\s+)?(?:email|e-mail|message|text|correo|mensaje|texto)\s*[:-]?\s*([\s\S]+)$/i
+      ) ??
+      text.match(
+        /^(?:(?:please|por favor)\s+)?(?:analyze|analyse|check|inspect|analiza|analizar|revisa|revisar|verifica|verificar)\s*:\s*([\s\S]+)$/i
+      )
 
     if (analysisMatch?.[1]?.trim()) {
       const message = analysisMatch[1].trim()
@@ -278,44 +334,45 @@ export default function VoiceAssistant({
       onAnalyzeMessage(message)
       setStatus(
         spanish
-          ? 'Revisé el mensaje con reglas locales de patrones de alerta.'
-          : 'Checked the message using local warning-pattern rules.'
+          ? 'Envié el mensaje al analizador de amenazas.'
+          : 'Sent the message to the Threat Analyzer.'
       )
-      speak(
-        spanish
-          ? 'Revisé el mensaje con reglas locales de patrones de alerta.'
-          : 'I checked the message using local warning-pattern rules.'
-      )
+      speak(spanish ? 'Analizando el mensaje.' : 'Analyzing the message.')
       return
     }
 
-    // Send unmatched commands to the AI chat handler.
-    setStatus(spanish ? 'Consultando a Muse Spark…' : 'Asking Muse Spark…')
     void sendChatMessage(text)
-    speak(spanish ? 'Déjame analizar eso.' : 'Let me analyze that for you.')
   }
 
   async function sendChatMessage(messageText = chatInput) {
     const message = messageText.trim()
 
-    if (!message || chatBusy) return
+    if (!message || chatBusyRef.current) return
 
     if (!supabase) {
-      setChatReply('Supabase is not configured. Please check the app configuration.')
+      setChatError(
+        language === 'es'
+          ? 'Sophia no está configurada. Revisa la configuración de la aplicación.'
+          : 'Sophia is not configured. Please check the app configuration.'
+      )
       return
     }
 
+    const spanish = language === 'es'
+    const history = chatMessages.slice(-8)
+    chatBusyRef.current = true
     setChatBusy(true)
-    setChatReply('Sophia is thinking…')
+    setChatError('')
+    setChatMessages((current) => [...current, { role: 'user', content: message }])
+    setStatus(spanish ? 'Consultando a Sophia…' : 'Asking Sophia…')
 
     try {
       const { data, error } = await supabase.functions.invoke('sophia-chat', {
         body: {
           message,
-          history: [],
+          history,
         },
       })
-      console.log('Sophia chat response:', { data, error })
 
       if (error) {
         throw error
@@ -329,20 +386,37 @@ export default function VoiceAssistant({
         throw new Error('Sophia returned an empty response.')
       }
 
-      setChatReply(data.reply.trim())
+      const reply = data.reply.trim()
+      setChatMessages((current) => [...current, { role: 'assistant', content: reply }])
       setChatInput('')
-      speak(data.reply.trim())
+      setStatus(spanish ? 'Sophia respondió.' : 'Sophia replied.')
+      speak(reply)
     } catch (error) {
-      console.error('Sophia chat failed:', error)
-      setChatReply(
-        'Sophia could not respond. Please sign in if needed, then try again.'
-      )
+      console.error('Sophia chat request failed.')
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : spanish
+            ? 'Sophia no pudo responder. Inténtalo de nuevo.'
+            : 'Sophia could not respond. Please try again.'
+      setChatError(errorMessage)
+      setStatus(errorMessage)
     } finally {
+      chatBusyRef.current = false
       setChatBusy(false)
     }
   }
 
-  function startListening() {
+  function clearChat() {
+    if (chatBusyRef.current) return
+    setChatMessages([])
+    setChatError('')
+    setStatus(
+      language === 'es' ? 'Conversación borrada.' : 'Conversation cleared.'
+    )
+  }
+
+  function startListening(mode: ListeningMode = 'command') {
     const speechWindow = window as Window & {
       SpeechRecognition?: SpeechRecognitionConstructor
       webkitSpeechRecognition?: SpeechRecognitionConstructor
@@ -354,7 +428,9 @@ export default function VoiceAssistant({
 
     if (!Recognition) {
       setStatus(
-        'Speech recognition is not supported in this browser. Type your command below instead.'
+        language === 'es'
+          ? 'El reconocimiento de voz no está disponible en este navegador. Escribe tu pregunta.'
+          : 'Speech recognition is not supported in this browser. Type your question instead.'
       )
       return
     }
@@ -369,28 +445,53 @@ export default function VoiceAssistant({
 
       recognition.onresult = (event) => {
         const transcript = event.results[0]?.[0]?.transcript
-        if (transcript) processCommand(transcript)
+        if (!transcript) return
+
+        if (mode === 'chat') {
+          setChatInput(transcript)
+          void sendChatMessage(transcript)
+        } else {
+          processCommand(transcript)
+        }
       }
 
-      recognition.onerror = () => {
-        setStatus(
-          'Microphone recognition failed. Check browser microphone permission or type a command.'
-        )
+      recognition.onerror = (event) => {
+        const errorMessage =
+          event.error === 'not-allowed'
+            ? language === 'es'
+              ? 'Permite el acceso al micrófono para usar la voz.'
+              : 'Allow microphone access to use voice input.'
+            : language === 'es'
+              ? 'No se pudo reconocer la voz. Revisa el micrófono o escribe tu mensaje.'
+              : 'Voice recognition failed. Check your microphone or type your message.'
+        setStatus(errorMessage)
         setListening(false)
       }
 
       recognition.onend = () => {
         setListening(false)
+        setListeningMode('command')
       }
 
       recognitionRef.current = recognition
+      setListeningMode(mode)
       setListening(true)
-      setStatus('Listening… speak a ShieldPocket command.')
+      setStatus(
+        mode === 'chat'
+          ? language === 'es'
+            ? 'Escuchando tu pregunta para Sophia…'
+            : 'Listening for your question to Sophia…'
+          : language === 'es'
+            ? 'Escuchando un comando de ShieldPocket…'
+            : 'Listening for a ShieldPocket command…'
+      )
       recognition.start()
     } catch {
       setListening(false)
       setStatus(
-        'Could not start the microphone. You can type a command instead.'
+        language === 'es'
+          ? 'No se pudo iniciar el micrófono. Puedes escribir en su lugar.'
+          : 'Could not start the microphone. You can type instead.'
       )
     }
   }
@@ -423,7 +524,19 @@ export default function VoiceAssistant({
           {listening ? '🎙️' : '🔊'}
         </span>
         <div>
-          <strong>{listening ? (language === 'es' ? 'Escuchando…' : 'Listening now') : (language === 'es' ? 'Lista para ayudarte' : 'Ready to help')}</strong>
+          <strong>
+            {listening
+              ? listeningMode === 'chat'
+                ? language === 'es'
+                  ? 'Escuchando tu pregunta…'
+                  : 'Listening for your question…'
+                : language === 'es'
+                  ? 'Escuchando…'
+                  : 'Listening now'
+              : language === 'es'
+                ? 'Lista para ayudarte'
+                : 'Ready to help'}
+          </strong>
           <p>
             {language === 'es' ? 'El acceso al micrófono depende de tu navegador y de los permisos.' : 'Microphone access depends on your browser and permission settings.'}
           </p>
@@ -461,7 +574,7 @@ export default function VoiceAssistant({
         <button
           type="button"
           className="primary-button"
-          onClick={startListening}
+          onClick={() => startListening('command')}
           disabled={listening}
         >
           {listening ? (language === 'es' ? 'Escuchando…' : 'Listening…') : (language === 'es' ? '🎙 Comenzar a hablar' : '🎙 Start talking')}
@@ -481,8 +594,8 @@ export default function VoiceAssistant({
           onClick={async () => {
             setStatus(
               language === 'es'
-                ? 'Verificando huella / Passkey…'
-                : 'Verifying fingerprint / Passkey…'
+                ? 'Verificando la biometría del dispositivo…'
+                : 'Checking device biometrics…'
             )
 
             try {
@@ -506,7 +619,7 @@ export default function VoiceAssistant({
             }
           }}
         >
-          🔒 {language === 'es' ? 'Escanear huella / Passkey' : 'Scan Fingerprint / Passkey'}
+          🔒 {language === 'es' ? 'Verificar biometría del dispositivo' : 'Check device biometrics'}
         </button>
 
         <button
@@ -531,15 +644,19 @@ export default function VoiceAssistant({
         <ul>
           {language === 'es' ? (
             <>
+              <li>“Ayuda” para ver comandos disponibles</li>
               <li>“Abre el analizador de amenazas”</li>
               <li>“Abre la revisión de seguridad”</li>
+              <li>“Abre el estado del dispositivo móvil”</li>
               <li>“Abre la respuesta a incidentes”</li>
               <li>“Analiza correo:”, seguido del mensaje que quieres revisar</li>
             </>
           ) : (
             <>
+              <li>“Help” to hear available commands</li>
               <li>“Open threat analyzer”</li>
               <li>“Open security checkup”</li>
+              <li>“Open mobile posture”</li>
               <li>“Open incident response”</li>
               <li>“Analyze email:” followed by the message you want checked</li>
             </>
@@ -551,8 +668,8 @@ export default function VoiceAssistant({
         <h3>{language === 'es' ? 'Habla con Sophia' : 'Chat with Sophia'}</h3>
         <p>
           {language === 'es'
-            ? 'Haz preguntas sobre ciberseguridad en español o inglés.'
-            : 'Ask cybersecurity questions in English or Spanish.'}
+            ? 'Haz preguntas de ciberseguridad por texto o voz. Sophia conserva el contexto reciente durante esta sesión.'
+            : 'Ask cybersecurity questions by text or voice. Sophia keeps recent context during this session.'}
         </p>
 
         <label htmlFor="sophia-chat-input">
@@ -571,28 +688,72 @@ export default function VoiceAssistant({
           disabled={chatBusy}
         />
 
-        <button
-          type="button"
-          onClick={() => void sendChatMessage()}
-          disabled={chatBusy || !chatInput.trim()}
-        >
-          {chatBusy
-            ? (language === 'es' ? 'Pensando…' : 'Thinking…')
-            : (language === 'es' ? 'Enviar mensaje' : 'Send message')}
-        </button>
+        <div className="sophia-chat-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => void sendChatMessage()}
+            disabled={chatBusy || !chatInput.trim()}
+          >
+            {chatBusy
+              ? (language === 'es' ? 'Pensando…' : 'Thinking…')
+              : (language === 'es' ? 'Enviar mensaje' : 'Send message')}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => startListening('chat')}
+            disabled={listening || chatBusy}
+          >
+            {language === 'es' ? '🎙 Preguntar por voz' : '🎙 Ask by voice'}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={clearChat}
+            disabled={!chatMessages.length || chatBusy}
+          >
+            {language === 'es' ? 'Borrar conversación' : 'Clear conversation'}
+          </button>
+        </div>
 
-        {chatReply && (
-          <div className="sophia-chat-reply" role="status" aria-live="polite">
-            <strong>{language === 'es' ? 'Sophia responde:' : 'Sophia says:'}</strong>
-            <p>{chatReply}</p>
+        {chatError && (
+          <p className="sophia-chat-error" role="alert">
+            {chatError}
+          </p>
+        )}
+
+        {chatMessages.length > 0 && (
+          <div
+            className="sophia-chat-transcript"
+            role="log"
+            aria-label={language === 'es' ? 'Conversación con Sophia' : 'Conversation with Sophia'}
+            aria-live="polite"
+            aria-relevant="additions"
+          >
+            {chatMessages.map((message, index) => (
+              <article
+                className={`sophia-chat-message sophia-chat-message-${message.role}`}
+                key={`${index}-${message.role}`}
+              >
+                <strong>
+                  {message.role === 'assistant'
+                    ? 'Sophia'
+                    : language === 'es'
+                      ? 'Tú'
+                      : 'You'}
+                </strong>
+                <p>{message.content}</p>
+              </article>
+            ))}
           </div>
         )}
       </div>
 
       <p className="disclaimer">
         {language === 'es'
-          ? 'Versión beta de voz: los comandos solo controlan las herramientas que aparecen en ShieldPocket. Sophia no puede acceder a tu bandeja de entrada, iniciar sesión en otros sitios ni eludir la autenticación. La revisión de mensajes utiliza patrones locales; no está conectada a un modelo de inteligencia artificial.'
-          : 'Voice beta: commands only control ShieldPocket’s on-screen tools. Sophia cannot access your inbox, sign in to other websites, or bypass authentication. Message checks use local pattern matching, not a connected AI model.'}
+          ? 'Versión beta: los comandos de navegación usan herramientas visibles de ShieldPocket. Las preguntas del chat y el texto que envías para analizar se procesan con los servicios de IA configurados. Sophia no puede acceder a tu bandeja de entrada, iniciar sesión en otros sitios ni ejecutar acciones de contención.'
+          : 'Beta: navigation commands use ShieldPocket’s visible tools. Chat questions and submitted text are processed by the configured AI services. Sophia cannot access your inbox, sign in to other websites, or execute containment actions.'}
       </p>
     </section>
   )

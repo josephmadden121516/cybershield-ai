@@ -106,3 +106,82 @@
   line-height: 1.5;
   opacity: 0.75;
 }
+
+.sophia-chat {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.sophia-chat > p {
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.sophia-chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sophia-chat-transcript {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.sophia-chat-message {
+  max-width: 90%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+
+.sophia-chat-message-user {
+  justify-self: end;
+  background: rgba(45, 190, 160, 0.13);
+}
+
+.sophia-chat-message-assistant {
+  justify-self: start;
+  background: rgba(100, 116, 139, 0.14);
+}
+
+.sophia-chat-message strong {
+  font-size: 12px;
+}
+
+.sophia-chat-message p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sophia-chat-error {
+  margin: 12px 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .sophia-chat-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .sophia-chat-actions button {
+    width: 100%;
+  }
+
+  .sophia-chat-message {
+    max-width: 100%;
+  }
+}
