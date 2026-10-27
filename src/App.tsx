@@ -8,6 +8,7 @@ import './App.css'
 import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
+import { PhishingResponseGuide } from './components/PhishingResponseGuide'
 
 const securityTasks = [
   {
@@ -689,10 +690,17 @@ if (suspiciousUrl) {
 
     if (!trimmedMessage) {
       setResult('Please enter a message to analyze.')
+      setAnalysisFindings([])
+      setAnalysisRiskLevel(null)
+      setAnalysisSummary('')
       return
     }
 
     setAnalysisLoading(true)
+    setResult('')
+    setAnalysisFindings([])
+    setAnalysisRiskLevel(null)
+    setAnalysisSummary('')
     setReportMessage('')
 
     try {
@@ -1242,9 +1250,14 @@ const securityGrade =
               <button
                 type="button"
                 className="primary-button"
+                disabled={analysisLoading}
                 onClick={() => {
                   setMessage('Your business email will be disabled today. Verify your account immediately using this link or access will be permanently removed.')
                   setResult('')
+                  setAnalysisFindings([])
+                  setAnalysisRiskLevel(null)
+                  setAnalysisSummary('')
+                  setReportMessage('')
                 }}
               >
                 Urgent login
@@ -1252,9 +1265,14 @@ const securityGrade =
               <button
                 type="button"
                 className="primary-button"
+                disabled={analysisLoading}
                 onClick={() => {
                   setMessage('Please process this invoice payment today. We changed our bank details, so use the new account in the attached instructions.')
                   setResult('')
+                  setAnalysisFindings([])
+                  setAnalysisRiskLevel(null)
+                  setAnalysisSummary('')
+                  setReportMessage('')
                 }}
               >
                 Invoice request
@@ -1262,9 +1280,14 @@ const securityGrade =
               <button
                 type="button"
                 className="primary-button"
+                disabled={analysisLoading}
                 onClick={() => {
                   setMessage('Hello team, the monthly maintenance window is scheduled for Saturday from 8:00 to 9:00 PM. Please save your work beforehand.')
                   setResult('')
+                  setAnalysisFindings([])
+                  setAnalysisRiskLevel(null)
+                  setAnalysisSummary('')
+                  setReportMessage('')
                 }}
               >
                 Routine update
@@ -1276,7 +1299,15 @@ const securityGrade =
           <textarea
             id="message"
             value={message}
-            onChange={(event) => setMessage(event.target.value)}
+            disabled={analysisLoading}
+            onChange={(event) => {
+              setMessage(event.target.value)
+              setResult('')
+              setAnalysisFindings([])
+              setAnalysisRiskLevel(null)
+              setAnalysisSummary('')
+              setReportMessage('')
+            }}
             placeholder="Paste a suspicious message here..."
           />
 
@@ -1293,6 +1324,14 @@ const securityGrade =
             <div className="analysis-result" role="status">
               <h3>Analysis result</h3>
               <p>{result}</p>
+
+              {analysisRiskLevel && (
+                <PhishingResponseGuide
+                  key={`${analysisRiskLevel}-${analysisSummary}`}
+                  riskLevel={analysisRiskLevel}
+                  findings={analysisFindings}
+                />
+              )}
 
               {user ? (
                 <button
@@ -1691,17 +1730,17 @@ const securityGrade =
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>How does the Threat Analyzer work?</summary>
-            <p>The analyzer checks text you provide for built-in patterns associated with warning signs such as urgency, login requests, and unusual payment instructions. Its results are guidance, not a definitive threat verdict.</p>
+            <p>The analyzer sends text you provide to the configured AI service through a Supabase Edge Function. If AI analysis is unavailable, the app uses local warning-pattern checks. Results are guidance, not a definitive threat verdict.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>Does the Threat Analyzer use live AI or scan the internet?</summary>
-            <p>The current analyzer uses built-in pattern matching. It does not connect to a live AI model or threat-intelligence feed, and it may miss threats or flag legitimate messages for review.</p>
+            <p>When configured, the analyzer uses an AI model through a Supabase Edge Function, with local pattern matching as a fallback. It does not visit links or query a live threat-intelligence feed, and it may miss threats or flag legitimate messages for review.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>Are my messages uploaded or saved?</summary>
-            <p>Message analysis runs locally in the current implementation. If you choose to save a security report while signed in, report data is sent to the connected Supabase service. Avoid entering passwords, verification codes, financial details, or other sensitive information into the analyzer.</p>
+            <p>When AI analysis is configured, submitted message text is sent to the connected Supabase Edge Function and AI provider for processing. The app does not save an analysis report unless you choose Save report while signed in. Avoid entering passwords, verification codes, financial details, or other sensitive information into the analyzer.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
