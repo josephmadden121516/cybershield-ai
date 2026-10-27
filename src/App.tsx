@@ -7,6 +7,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
 import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
+import { MobileDevicePosture } from './components/MobileDevicePosture'
 
 const securityTasks = [
   {
@@ -172,6 +173,8 @@ function App() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [authMessage, setAuthMessage] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [hasPasskey, setHasPasskey] = useState<boolean | null>(null)
+  const [passkeyMessage, setPasskeyMessage] = useState('')
   const [isLocked, setIsLocked] = useState(false)
   const [faceLockMessage, setFaceLockMessage] = useState('')
   const [faceLockBusy, setFaceLockBusy] = useState(false)
@@ -197,6 +200,37 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPasskeys() {
+      if (!user || !supabase) {
+        setHasPasskey(null)
+        setPasskeyMessage('')
+        return
+      }
+
+      setHasPasskey(null)
+      setPasskeyMessage('')
+
+      const { data, error } = await supabase.auth.passkey.list()
+      if (cancelled) return
+
+      if (error) {
+        setPasskeyMessage(`Could not check registered passkeys: ${error.message}`)
+        return
+      }
+
+      setHasPasskey((data ?? []).length > 0)
+    }
+
+    void loadPasskeys()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
 
   // Protect the native workspace on launch and whenever the app resumes.
@@ -345,6 +379,55 @@ function App() {
     } catch (error) {
       setAuthMessage(
         error instanceof Error ? error.message : 'Authentication failed. Please try again.'
+      )
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  async function handlePasskeySignIn() {
+    if (!supabase) {
+      setAuthMessage('Authentication is not configured yet.')
+      return
+    }
+
+    setAuthLoading(true)
+    setAuthMessage('Follow your device prompt to sign in with a passkey.')
+
+    try {
+      const { error } = await supabase.auth.signInWithPasskey()
+      if (error) throw error
+      setAuthMessage('Signed in with your passkey successfully.')
+    } catch (error) {
+      setAuthMessage(
+        error instanceof Error
+          ? error.message
+          : 'Passkey sign-in failed. You can still use your email and password.'
+      )
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  async function handleRegisterPasskey() {
+    if (!supabase || !user) {
+      setPasskeyMessage('Sign in before registering a passkey.')
+      return
+    }
+
+    setAuthLoading(true)
+    setPasskeyMessage('Follow your device prompt to create a passkey.')
+
+    try {
+      const { error } = await supabase.auth.registerPasskey()
+      if (error) throw error
+      setHasPasskey(true)
+      setPasskeyMessage('Passkey registered. You can use it the next time you sign in.')
+    } catch (error) {
+      setPasskeyMessage(
+        error instanceof Error
+          ? error.message
+          : 'Passkey registration failed. Your existing sign-in method is unchanged.'
       )
     } finally {
       setAuthLoading(false)
@@ -939,6 +1022,7 @@ const securityGrade =
         <button type="button" className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}>▦ &nbsp; Overview</button>
         <button type="button" className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { setActiveSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
         <button type="button" className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>✓ &nbsp; Security checkup</button>
+        <button type="button" className={`nav-item ${activeSection === "mobile-device-posture" ? "active" : ""}`} onClick={() => { setActiveSection("mobile-device-posture"); document.getElementById("mobile-device-posture")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>▣ &nbsp; Mobile posture</button>
         <button type="button" className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { setActiveSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>↗ &nbsp; Incident response</button>
 
         <button type="button" className={`nav-item ${activeSection === "firewall-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("firewall-checkup"); document.getElementById("firewall-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>▣ &nbsp; Firewall checkup</button>
@@ -1005,6 +1089,25 @@ const securityGrade =
               {authMessage && (
                 <p role="status" aria-live="polite">{authMessage}</p>
               )}
+              {hasPasskey === false && (
+                <div>
+                  <p>No passkey is registered for this account yet.</p>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleRegisterPasskey}
+                    disabled={authLoading}
+                  >
+                    {authLoading ? 'Please wait...' : 'Create a passkey'}
+                  </button>
+                </div>
+              )}
+              {hasPasskey === true && (
+                <p role="status">A passkey is registered for this account.</p>
+              )}
+              {passkeyMessage && (
+                <p role="status" aria-live="polite">{passkeyMessage}</p>
+              )}
               <button
                 type="button"
                 className="primary-button"
@@ -1029,6 +1132,7 @@ const securityGrade =
               environment settings before signing in.
             </p>
           ) : (
+            <>
             <form onSubmit={handleAuthSubmit}>
               <div style={{ display: 'grid', gap: '12px' }}>
                 <label>
@@ -1089,6 +1193,15 @@ const securityGrade =
                 )}
               </div>
             </form>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handlePasskeySignIn}
+              disabled={authLoading}
+            >
+              {authLoading ? 'Please wait...' : 'Sign in with a passkey'}
+            </button>
+            </>
           )}
         </section>
 
@@ -1344,6 +1457,7 @@ const securityGrade =
           </p>
         </section>
 
+        <MobileDevicePosture />
 
         <section id="firewall-checkup" className="content-card">
           <div className="card-heading">
