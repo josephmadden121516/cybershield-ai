@@ -297,7 +297,7 @@ function App() {
         if (!cancelled) {
           setIsLocked(true)
           setFaceLockMessage(
-            'Biometric protection could not start. Check Face ID and device passcode settings, then retry.'
+            'Biometric protection could not start. Check your device biometrics and passcode settings, then retry.'
           )
         }
       }
@@ -333,7 +333,7 @@ function App() {
     } catch {
       setIsLocked(true)
       setFaceLockMessage(
-        'Authentication was not completed. Check your Face ID or passcode settings and try again.'
+        'Authentication was not completed. Check your device biometric or passcode settings and try again.'
       )
     } finally {
       faceLockBusyRef.current = false
@@ -1750,7 +1750,7 @@ const securityGrade =
           </details>
 
           <details style={{ padding: "12px 0" }}>
-            <summary>How does Face ID work?</summary>
+            <summary>How does biometric app unlock work?</summary>
             <p>On supported devices, ShieldPocket can use the device's biometric-authentication capability to unlock the protected workspace. Availability depends on device support and system settings. Keep your device passcode secure and follow the on-screen instructions if authentication fails.</p>
           </details>
         </section>
@@ -1828,7 +1828,11 @@ const securityGrade =
               disabled={faceLockBusy || authLoading}
               style={{ marginTop: '10px' }}
             >
-              {faceLockBusy ? 'Waiting for authentication…' : 'Unlock with Face ID'}
+              {faceLockBusy
+                ? 'Waiting for authentication…'
+                : Capacitor.getPlatform() === 'android'
+                  ? 'Scan fingerprint to unlock'
+                  : 'Unlock with Face ID / Touch ID'}
             </button>
 
             <button
