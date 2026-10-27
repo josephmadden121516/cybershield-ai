@@ -342,13 +342,19 @@ footer {
     display: none;
   }
 
-  .sidebar > div:nth-child(2) {
+  .sidebar-nav {
+    display: flex;
+    gap: 4px;
+    width: 100%;
     overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
   }
 
-  .sidebar > div:nth-child(2) .nav-item {
-    display: inline-block;
-    margin-right: 4px;
+  .sidebar-nav .nav-item {
+    flex: 0 0 auto;
+    margin: 0;
     padding: 10px;
     font-size: 11px;
     white-space: nowrap;
@@ -557,5 +563,98 @@ footer {
 
   .face-lock-card h1 {
     font-size: 23px;
+  }
+}
+
+
+
+/* Password checker */
+.password-privacy-note {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 10px;
+  background: rgba(45, 212, 191, 0.07);
+  color: #b9d7df;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.password-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.password-check-input {
+  min-width: 0;
+  flex: 1;
+  padding: 13px;
+  border: 1px solid #30475b;
+  border-radius: 10px;
+  background: #091725;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.password-check-input:focus {
+  outline: 2px solid #31c7b4;
+  outline-offset: 1px;
+}
+
+.password-toggle-button,
+.secondary-button {
+  padding: 10px 14px;
+  border: 1px solid #365368;
+  border-radius: 9px;
+  background: #142b3d;
+  color: #d7e6f2;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.password-meter {
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 11px;
+}
+
+.password-meter-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #d7e6f2;
+  font-size: 13px;
+}
+
+.password-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 11px;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.password-feedback h3 {
+  margin-top: 0;
+  color: #eaf2fa;
+  font-size: 13px;
+}
+
+.password-feedback ul {
+  padding-left: 20px;
+}
+
+.password-checker .secondary-button {
+  margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .password-input-row {
+    flex-direction: column;
   }
 }

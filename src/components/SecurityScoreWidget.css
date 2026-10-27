@@ -1,0 +1,86 @@
+.security-score-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 16px 0;
+  padding: 18px;
+  color: #e7f0f7;
+  background: #101f30;
+  border: 1px solid #23384b;
+  border-radius: 14px;
+}
+
+.security-score-overview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.security-score-grade {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  place-items: center;
+  border: 4px solid currentColor;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.security-score-high {
+  color: #5eead4;
+}
+
+.security-score-medium {
+  color: #fbbf24;
+}
+
+.security-score-low {
+  color: #fb7185;
+}
+
+.security-score-overview h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.security-score-overview p,
+.security-score-recommendation p {
+  margin: 6px 0 0;
+  color: #9cb0c3;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.security-score-recommendation {
+  max-width: 430px;
+  padding: 12px 14px;
+  background: #0b1827;
+  border: 1px solid #26394b;
+  border-radius: 10px;
+}
+
+.security-score-recommendation > span {
+  color: #5eead4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.security-score-recommendation small {
+  display: block;
+  margin-top: 8px;
+  color: #8197aa;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 620px) {
+  .security-score-widget {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

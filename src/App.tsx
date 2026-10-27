@@ -5,6 +5,8 @@ import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
+import VoiceAssistant from './VoiceAssistant'
+import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 
 const securityTasks = [
   {
@@ -33,6 +35,112 @@ const securityTasks = [
   },
 ]
 
+const firewallTasks = [
+  {
+    id: 'firewall-enabled',
+    title: 'Confirm the firewall is enabled',
+    description: 'Check your operating system settings rather than assuming it is enabled.',
+  },
+  {
+    id: 'firewall-updates',
+    title: 'Keep your operating system updated',
+    description: 'Install security updates and restart when required.',
+  },
+  {
+    id: 'firewall-apps',
+    title: 'Review allowed applications',
+    description: 'Remove permissions for applications you do not recognize or need.',
+  },
+  {
+    id: 'firewall-sharing',
+    title: 'Review network sharing',
+    description: 'Disable unnecessary file sharing and remote access.',
+  },
+]
+
+const cookieConcerns = [
+  { id: 'third-party', label: 'Third-party cookies are enabled or present' },
+  { id: 'advertising', label: 'Advertising or cross-site tracking is disclosed' },
+  { id: 'unclear-consent', label: 'The cookie notice is unclear or consent choices are difficult to find' },
+  { id: 'excessive', label: 'The site requests tracking that seems unnecessary for its purpose' },
+  { id: 'retention', label: 'Cookie duration or data use is not clearly explained' },
+]
+
+
+function assessPasswordStrength(value: string) {
+  const warnings: string[] = []
+  const suggestions: string[] = []
+
+  if (!value) {
+    return {
+      score: 0,
+      label: 'Not assessed',
+      warnings: [],
+      suggestions: ['Enter a sample password to see local feedback.'],
+    }
+  }
+
+  if (value.length < 12) {
+    warnings.push('The password is shorter than 12 characters.')
+    suggestions.push('Use a longer password or passphrase.')
+  }
+
+  if (value.length < 16) {
+    suggestions.push('Consider 16 or more characters for important accounts.')
+  }
+
+  if (/^(.)\1+$/.test(value)) {
+    warnings.push('The password repeats the same character.')
+  }
+
+  if (/password|qwerty|letmein|welcome|admin|123456|iloveyou/i.test(value)) {
+    warnings.push('The password contains a commonly used weak word or pattern.')
+  }
+
+  if (/^(0123|1234|12345|123456|abcdef|qwerty)/i.test(value)) {
+    warnings.push('The password begins with a predictable sequence.')
+  }
+
+  const varietyChecks = [
+    /[a-z]/.test(value),
+    /[A-Z]/.test(value),
+    /\d/.test(value),
+    /[^A-Za-z0-9]/.test(value),
+  ].filter(Boolean).length
+
+  let score = 0
+  if (value.length >= 8) score += 1
+  if (value.length >= 12) score += 1
+  if (value.length >= 16) score += 1
+  if (varietyChecks >= 2) score += 1
+  if (varietyChecks >= 3) score += 1
+  if (varietyChecks === 4) score += 1
+  if (warnings.length > 0) score = Math.max(0, score - warnings.length)
+
+  const normalizedScore = Math.max(0, Math.min(6, score))
+  const label =
+    normalizedScore <= 1 ? 'Weak' :
+    normalizedScore <= 3 ? 'Fair' :
+    normalizedScore <= 4 ? 'Good' : 'Stronger'
+
+  if (varietyChecks < 3) {
+    suggestions.push('Avoid relying on one character type alone.')
+  }
+
+  if (!warnings.length && value.length >= 16) {
+    suggestions.push('Good signs: keep it unique to one account and store it in a reputable password manager.')
+  }
+
+  suggestions.push('Never reuse this password across accounts; enable multifactor authentication where available.')
+
+  return {
+    score: normalizedScore,
+    label,
+    warnings,
+    suggestions: [...new Set(suggestions)],
+  }
+}
+
 interface SecurityReport {
   id: string
   message_text: string
@@ -48,6 +156,7 @@ function App() {
     'Your business email will be disabled today. Verify your account immediately using this link.'
   )
   const [result, setResult] = useState('')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisFindings, setAnalysisFindings] = useState<string[]>([])
   const [analysisRiskLevel, setAnalysisRiskLevel] =
     useState<'low' | 'review' | 'high' | null>(null)
@@ -221,6 +330,10 @@ function App() {
             ? 'Account created and signed in.'
             : 'Account created. Check your email to confirm your address before signing in.'
         )
+        if (data.session) {
+          setIsLocked(false)
+          setFaceLockMessage('')
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -247,30 +360,48 @@ function App() {
     setAuthLoading(false)
   }
 
-  async function handlePasskeySignIn() {
-    if (!supabase) {
-      setAuthMessage('Authentication is not configured yet.')
-      return
-    }
+  async function handleDeleteAccount() {
+    if (!supabase || !user) return
+
+    const confirmed = window.confirm(
+      'Permanently delete your ShieldPocket account and its saved cloud data? This action cannot be undone.'
+    )
+
+    if (!confirmed) return
 
     setAuthLoading(true)
-    setAuthMessage('Follow your device or browser prompt to sign in with a passkey.')
+    setAuthMessage('')
 
     try {
-      const { error } = await supabase.auth.signInWithPasskey()
-      if (error) throw error
-      setAuthMessage('Signed in with your passkey successfully.')
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        method: 'POST',
+      })
+
+      if (error || !data?.success) {
+        throw new Error(
+          'Account deletion could not be confirmed. Please try again. If the problem continues, contact support.'
+        )
+      }
+
+      await supabase.auth.signOut()
+      setAuthMessage('Your account and associated saved cloud data have been deleted.')
+      setPassword('')
+      setEmail('')
     } catch (error) {
       setAuthMessage(
         error instanceof Error
           ? error.message
-          : 'Passkey sign-in failed. You can still use your email and password.'
+          : 'Account deletion failed. Please try again.'
       )
     } finally {
       setAuthLoading(false)
     }
   }
 
+ 
+
+
+  
   async function handleLockPasswordSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!supabase) {
@@ -302,56 +433,11 @@ function App() {
     }
   }
 
-  async function handleLockPasskeySignIn() {
-    if (!supabase) {
-      setFaceLockMessage('Authentication is not configured yet.')
-      return
-    }
+  
 
-    setAuthLoading(true)
-    setFaceLockMessage('Follow your device prompt to sign in with a passkey.')
 
-    try {
-      const { error } = await supabase.auth.signInWithPasskey()
-      if (error) throw error
+  
 
-      setIsLocked(false)
-      setFaceLockMessage('')
-      setAuthMessage('Signed in with your passkey successfully.')
-    } catch (error) {
-      setFaceLockMessage(
-        error instanceof Error
-          ? error.message
-          : 'Passkey sign-in failed. You can use email and password instead.'
-      )
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
-  async function handleRegisterPasskey() {
-    if (!supabase || !user) {
-      setAuthMessage('Sign in before enabling Secure Open.')
-      return
-    }
-
-    setAuthLoading(true)
-    setAuthMessage('Follow your device or browser prompt to create a passkey.')
-
-    try {
-      const { error } = await supabase.auth.registerPasskey()
-      if (error) throw error
-      setAuthMessage('Passkey registered successfully. Secure Open is enabled for this account.')
-    } catch (error) {
-      setAuthMessage(
-        error instanceof Error
-          ? error.message
-          : 'Passkey registration failed. Your existing sign-in method is unchanged.'
-      )
-    } finally {
-      setAuthLoading(false)
-    }
-  }
 
 const [checklistReadyForUserId, setChecklistReadyForUserId] =
     useState<string | null>(null)
@@ -364,6 +450,23 @@ const [checklistReadyForUserId, setChecklistReadyForUserId] =
   }
 })
 
+  const [firewallPlatform, setFirewallPlatform] =
+    useState<'mac' | 'windows'>('mac')
+  const [completedFirewallTasks, setCompletedFirewallTasks] =
+    useState<string[]>([])
+  const [selectedCookieConcerns, setSelectedCookieConcerns] =
+    useState<string[]>([])
+  const [passwordCheckInput, setPasswordCheckInput] = useState('')
+  const [showPasswordCheckInput, setShowPasswordCheckInput] = useState(false)
+  const passwordAssessment = assessPasswordStrength(passwordCheckInput)
+
+  useEffect(() => {
+    if (activeSection !== 'password-checker') {
+      setPasswordCheckInput('')
+      setShowPasswordCheckInput(false)
+    }
+  }, [activeSection])
+
   const nextRecommendedTask = securityTasks.find(
     (_, index) => !completedTasks.includes(index)
   )
@@ -375,44 +478,207 @@ const [checklistReadyForUserId, setChecklistReadyForUserId] =
     nextRecommendedTask?.description ??
     'All baseline tasks are complete. Review your controls regularly to make sure they remain effective.'
 
-  function analyzeMessage() {
-    const text = message.toLowerCase()
+  function analyzeMessage(textToAnalyze: string = message) {
+    const text = textToAnalyze.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+    const spanish = /\b(el|la|los|las|tu|tus|cuenta|contrasena|correo|mensaje|haga|hoy|urgente|verifica|verificar|haz|pago|banco|clave|premio|factura)\b/.test(text)
+
     const warnings: string[] = []
 
-    if (/urgent|immediately|today|act now|final warning/.test(text)) {
-      warnings.push('Uses urgency or pressure to act')
+const urlPattern = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi
+const urls = textToAnalyze.match(urlPattern) ?? []
+
+const suspiciousUrl = urls.some((url) => {
+  const normalizedUrl = url.toLowerCase()
+
+  return (
+    /bit\.ly|tinyurl\.com|t\.co|is\.gd|cutt\.ly|rb\.gy/.test(normalizedUrl) ||
+    /https?:\/\/\d{1,3}(?:\.\d{1,3}){3}/.test(normalizedUrl) ||
+    /@/.test(normalizedUrl)
+  )
+})
+
+const actions: string[] = []
+
+if (suspiciousUrl) {
+  warnings.push(spanish
+    ? 'Contiene un enlace que merece una revisión adicional'
+    : 'Contains a link that deserves additional scrutiny')
+
+  actions.push(spanish
+    ? 'No abras el enlace todavía. Visita el sitio oficial escribiendo su dirección directamente.'
+    : 'Do not open the link yet. Visit the official website by typing its address directly.')
+}
+    
+
+    if (/\burgent(e|ly)?\b|\bimmediately\b|\btoday\b|\bact now\b|\bfinal warning\b|\bexpires? today\b|\bde inmediato\b|\binmediatamente\b|\bactua ahora\b|\hoy\b|\bultima advertencia\b|\bultim(o|a) aviso\b|\bse bloqueara\b|\bsera desactivad[ao]\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Usa urgencia o presión para que actúes rápidamente'
+        : 'Uses urgency or pressure to make you act quickly')
+      actions.push(spanish
+        ? 'No te apresures. Verifica la solicitud por un canal oficial independiente.'
+        : 'Do not rush. Verify the request through an independent official channel.')
     }
 
-    if (/password|verify your account|sign in|login|code/.test(text)) {
-      warnings.push('Mentions account access or sensitive information')
+    if (/\bpassword\b|\bpasscode\b|\bverify your account\b|\bsign in\b|\blog ?in\b|\bsecurity code\b|\bone.time code\b|\bcontrasena\b|\bclave\b|\bverifica tu cuenta\b|\bverificar tu cuenta\b|\binicia sesion\b|\bcodigo de seguridad\b|\bcodigo de verificacion\b|\bdatos de acceso\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Menciona contraseñas, acceso a cuentas o información sensible'
+        : 'Mentions passwords, account access, or sensitive information')
+      actions.push(spanish
+        ? 'No compartas contraseñas ni códigos. Abre la aplicación o el sitio oficial directamente.'
+        : 'Never share passwords or verification codes. Open the official app or website directly.')
     }
 
-    if (/click here|use this link|attachment|download now/.test(text)) {
-      warnings.push('Encourages clicking a link or opening a file')
+    if (/\bclick here\b|\buse this link\b|\bopen the attachment\b|\bdownload now\b|\bclick the link\b|\bhaz clic\b|\bpulsa el enlace\b|\babre el archivo adjunto\b|\bdescarga ahora\b|\bda clic\b|\bpresiona el enlace\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Te pide abrir un enlace o archivo adjunto'
+        : 'Encourages clicking a link or opening an attachment')
+      actions.push(spanish
+        ? 'Evita abrir enlaces o archivos inesperados. Comprueba el destino y el remitente por separado.'
+        : 'Avoid unexpected links or attachments. Verify the sender and destination separately.')
     }
 
-    if (/wire transfer|bank details|payment today|gift card/.test(text)) {
-      warnings.push('Contains a financial or payment request')
+    if (/\bwire transfer\b|\bbank details\b|\bpayment today\b|\bgift card\b|\bcrypto(?:currency)?\b|\btransferencia bancaria\b|\bdatos bancarios\b|\bpago hoy\b|\btarjeta de regalo\b|\btarjeta regalo\b|\btransfiere dinero\b|\btransfiere fondos\b|\bpaga ahora\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Incluye una solicitud financiera o de pago'
+        : 'Contains a financial or payment request')
+      actions.push(spanish
+        ? 'Confirma cualquier pago con el destinatario mediante un número o contacto que ya conozcas.'
+        : 'Confirm payment requests with the recipient using a contact method you already trust.')
     }
+
+    if (/\bprize\b|\byou have won\b|\bclaim your reward\b|\bfree money\b|\bpremio\b|\bhas ganado\b|\bganaste\b|\breclama tu recompensa\b|\bdinero gratis\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Promete un premio o recompensa que podría ser engañoso'
+        : 'Promises a prize or reward that could be deceptive')
+      actions.push(spanish
+        ? 'Desconfía de premios inesperados que exigen pagos, datos personales o hacer clic en enlaces.'
+        : 'Be cautious of unexpected prizes requiring payment, personal details, or clicking links.')
+    }
+
+    if (/\bimpersonat(?:e|ing)\b|\bpretend to be\b|\bceo\b|\bmanager\b|\bboss\b|\bme hago pasar\b|\bsuplantacion\b|\bdirector\b|\bjefe\b|\bgerente\b/.test(text)) {
+      warnings.push(spanish
+        ? 'Podría implicar suplantación de identidad o autoridad'
+        : 'May involve impersonation of a person or authority')
+      actions.push(spanish
+        ? 'Confirma la identidad del remitente por otro canal antes de cumplir instrucciones.'
+        : 'Verify the sender’s identity through another channel before following instructions.')
+    }
+
+    const uniqueWarnings = [...new Set(warnings)]
+    const uniqueActions = [...new Set(actions)]
 
     const riskLevel: 'low' | 'review' | 'high' =
-      warnings.length >= 3 ? 'high' : warnings.length > 0 ? 'review' : 'low'
+      uniqueWarnings.length >= 3 ? 'high' : uniqueWarnings.length > 0 ? 'review' : 'low'
 
-    const summary = warnings.length
-      ? `Caution: ${warnings.length} warning sign(s) found. Verify independently before taking action.`
-      : 'No common warning patterns were detected. This does not prove the message is safe.'
+    const summary = uniqueWarnings.length
+      ? (spanish
+          ? `Precaución: se detectaron ${uniqueWarnings.length} señal(es) de alerta. Esto no confirma que el mensaje sea fraudulento; verifica por separado.`
+          : `Caution: ${uniqueWarnings.length} warning sign(s) detected. This does not prove the message is fraudulent; verify independently.`)
+      : (spanish
+          ? 'No se detectaron patrones de alerta comunes. Esto no garantiza que el mensaje sea seguro.'
+          : 'No common warning patterns were detected. This does not guarantee the message is safe.')
 
-    setAnalysisFindings(warnings)
+    setAnalysisFindings(uniqueWarnings)
     setAnalysisRiskLevel(riskLevel)
     setAnalysisSummary(summary)
     setReportMessage('')
 
     setResult(
-      warnings.length
-        ? `Caution: ${warnings.length} warning sign(s) found.\n\n${warnings.map((warning) => `• ${warning}`).join('\n')}\n\nVerify independently before taking action.`
-        : 'No common warning patterns were detected. This does not prove the message is safe.'
+      summary +
+      (uniqueWarnings.length
+        ? '\n\n' +
+          (spanish ? 'Señales detectadas:' : 'Warning signs:') +
+          '\n' + uniqueWarnings.map((warning) => `• ${warning}`).join('\n') +
+          '\n\n' + (spanish ? 'Acciones recomendadas:' : 'Recommended actions:') +
+          '\n' + uniqueActions.map((action) => `• ${action}`).join('\n')
+        : '')
     )
   }
+
+    
+
+
+  async function handleThreatAnalysis(textToAnalyze: string = message) {
+    const trimmedMessage = textToAnalyze.trim()
+
+    if (!trimmedMessage) {
+      setResult('Please enter a message to analyze.')
+      return
+    }
+
+    setAnalysisLoading(true)
+    setReportMessage('')
+
+    try {
+      if (!supabase || !isSupabaseConfigured) {
+        throw new Error('Supabase is not configured.')
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        'analyze-threat',
+        { body: { message: trimmedMessage } }
+      )
+
+      if (error) throw error
+
+      const aiAnalysis =
+        typeof data?.analysis === 'string' ? data.analysis.trim() : ''
+
+      if (!aiAnalysis) {
+        throw new Error('The AI function returned no analysis.')
+      }
+
+      const riskMatch = aiAnalysis.match(
+        /\bRisk\s*:\s*(High|Medium|Moderate|Review|Low)\b/i
+      )
+
+      const riskWord = riskMatch?.[1]?.toLowerCase() ?? 'review'
+      const riskLevel: 'low' | 'review' | 'high' =
+        riskWord === 'high'
+          ? 'high'
+          : riskWord === 'low'
+            ? 'low'
+            : 'review'
+
+      const findings = aiAnalysis
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) =>
+          /^(Reasons|Findings|Recommended actions|Limitations)\s*:/i.test(line) ||
+          /^[-•]\s+/.test(line)
+        )
+        .map((line: string) => line.replace(/^[-•]\s*/, ''))
+
+      setAnalysisFindings(
+        findings.length > 0 ? findings : [aiAnalysis]
+      )
+      setAnalysisRiskLevel(riskLevel)
+      setAnalysisSummary(
+        aiAnalysis.split('\n').find((line: string) => line.trim()) ??
+          'AI threat analysis completed.'
+      )
+      setResult(aiAnalysis)
+      if (data?.alertStatus === 'created') {
+        setReportMessage('High-severity alert saved to your account.')
+      } else if (data?.alertError) {
+        setReportMessage(data.alertError)
+      } else if (data?.alertStatus === 'skipped' && riskLevel === 'high') {
+        setReportMessage('Sign in to receive high-severity security alerts.')
+      }
+    } catch (error) {
+      console.error('AI threat analysis failed; using local analysis.', error)
+      analyzeMessage(trimmedMessage)
+      setReportMessage(
+        'AI analysis was unavailable, so local pattern analysis was used instead.'
+      )
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
 
   async function saveReport() {
     if (!user || !supabase || !analysisRiskLevel) {
@@ -652,14 +918,11 @@ const [checklistReadyForUserId, setChecklistReadyForUserId] =
   const completedCount = completedTasks.length
   const progress = Math.round((completedCount / securityTasks.length) * 100)
 const securityScore = Math.round((completedCount / securityTasks.length) * 100)
-const securityStatus =
-  securityScore < 40
-    ? 'Needs attention'
-    : securityScore < 70
-      ? 'Improving'
-      : securityScore < 90
-        ? 'Good progress'
-        : 'Strong checklist completion'
+const securityGrade =
+  securityScore >= 90 ? 'A' :
+  securityScore >= 80 ? 'B' :
+  securityScore >= 70 ? 'C' :
+  securityScore >= 60 ? 'D' : 'F'
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -672,10 +935,15 @@ const securityStatus =
         </div>
 
         <p className="nav-label">WORKSPACE</p>
+<div className="sidebar-nav">
         <button type="button" className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}>▦ &nbsp; Overview</button>
         <button type="button" className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { setActiveSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
         <button type="button" className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>✓ &nbsp; Security checkup</button>
         <button type="button" className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { setActiveSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>↗ &nbsp; Incident response</button>
+
+        <button type="button" className={`nav-item ${activeSection === "firewall-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("firewall-checkup"); document.getElementById("firewall-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>▣ &nbsp; Firewall checkup</button>
+        <button type="button" className={`nav-item ${activeSection === "cookie-privacy" ? "active" : ""}`} onClick={() => { setActiveSection("cookie-privacy"); document.getElementById("cookie-privacy")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>◉ &nbsp; Cookie privacy</button>
+        <button type="button" className={`nav-item ${activeSection === "password-checker" ? "active" : ""}`} onClick={() => { setActiveSection("password-checker"); document.getElementById("password-checker")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>🔐 &nbsp; Password checker</button></div>
 
         <div className="sidebar-note">
           <strong>Security starts here.</strong>
@@ -698,6 +966,22 @@ const securityStatus =
           </p>
         </section>
 
+        <VoiceAssistant
+          onNavigate={(section) => {
+            if (section === 'overview') {
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+              return
+            }
+            setActiveSection(section)
+            document.getElementById(section)?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            })
+          }}
+          onSetMessage={setMessage}
+          onAnalyzeMessage={(text) => handleThreatAnalysis(text)}
+        />
+
         <section className="content-card auth-card">
           <div className="card-heading">
             <div>
@@ -716,19 +1000,8 @@ const securityStatus =
           {user ? (
             <div>
               <p>Signed in as <strong>{user.email}</strong></p>
-              <p className="auth-help">
-                Secure Open lets you sign in with a passkey saved to your
-                device or password manager. Keep email and password available
-                as a backup.
-              </p>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleRegisterPasskey}
-                disabled={authLoading}
-              >
-                {authLoading ? 'Please wait...' : 'Enable Secure Open (passkey)'}
-              </button>
+             
+              
               {authMessage && (
                 <p role="status" aria-live="polite">{authMessage}</p>
               )}
@@ -739,6 +1012,15 @@ const securityStatus =
                 disabled={authLoading}
               >
                 {authLoading ? 'Signing out...' : 'Sign out'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleDeleteAccount}
+                disabled={authLoading}
+                style={{ marginTop: '12px' }}
+              >
+                {authLoading ? 'Please wait...' : 'Delete Account'}
               </button>
             </div>
           ) : !isSupabaseConfigured ? (
@@ -800,22 +1082,7 @@ const securityStatus =
                     : 'Already have an account? Sign in'}
                 </button>
 
-                {authMode === 'signin' && (
-                  <>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={handlePasskeySignIn}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? 'Please wait...' : 'Sign in with a passkey'}
-                    </button>
-                    <p className="auth-help">
-                      Already registered a passkey? Use it to sign in.
-                      To set one up, sign in with email and password first.
-                    </p>
-                  </>
-                )}
+                
 
                 {authMessage && (
                   <p role="status" aria-live="polite">{authMessage}</p>
@@ -851,7 +1118,7 @@ const securityStatus =
               <h2>Suspicious message analyzer</h2>
               <p>Paste a message to check for common warning signs.</p>
             </div>
-            <span className="demo-tag">LOCAL DEMO</span>
+            <span className="demo-tag">AI-ASSISTED</span>
           </div>
 
           <div style={{ marginBottom: '14px' }}>
@@ -900,8 +1167,13 @@ const securityStatus =
             placeholder="Paste a suspicious message here..."
           />
 
-          <button className="primary-button" onClick={analyzeMessage}>
-            Analyze message →
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => handleThreatAnalysis()}
+            disabled={analysisLoading}
+          >
+            {analysisLoading ? 'Analyzing with AI...' : 'Analyze message →'}
           </button>
 
           {result && (
@@ -929,9 +1201,10 @@ const securityStatus =
           )}
 
           <p className="disclaimer">
-            Prototype only. This version uses local pattern matching, not a
-            connected AI model or live security scan. Results are not a
-            guarantee that a message is safe or malicious.
+            AI-assisted message analysis with local pattern-matching fallback.
+            This is not a live security scan, and results cannot guarantee
+            that a message is safe or malicious. Verify suspicious messages
+            independently before acting.
           </p>
         </section>
 
@@ -1033,63 +1306,12 @@ const securityStatus =
               />
             </div>
           </div>
-<div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '16px',
-                padding: '14px',
-                borderRadius: '10px',
-                background: 'rgba(45, 212, 191, 0.08)',
-                border: '1px solid rgba(45, 212, 191, 0.25)',
-              }}
-            >
-              <div>
-                <strong>Security Score</strong>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', opacity: 0.75 }}>
-                  Based on completed security tasks
-                </p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-  <strong style={{ fontSize: '26px', color: '#2dd4bf' }}>
-    {securityScore}/100
-  </strong>
-  <p style={{ margin: '4px 0 0', fontSize: '11px', opacity: 0.8 }}>
-    {securityStatus}
-  </p>
-</div>
-            </div>
-
-            <div
-              style={{
-                marginTop: '14px',
-                marginBottom: '16px',
-                padding: '16px',
-                borderRadius: '10px',
-                background: 'rgba(45, 212, 191, 0.08)',
-                border: '1px solid rgba(45, 212, 191, 0.25)',
-              }}
-            >
-              <p
-                style={{
-                  margin: '0 0 8px',
-                  fontSize: '11px',
-                  color: '#2dd4bf',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              >
-                Recommended Next Step
-              </p>
-
-              <strong>{recommendationTitle}</strong>
-
-              <p style={{ margin: '6px 0 0', fontSize: '12px', opacity: 0.8 }}>
-                {recommendationDescription}
-              </p>
-            </div>
+          <SecurityScoreWidget
+            score={securityScore}
+            grade={securityGrade}
+            recommendation={`${recommendationTitle}: ${recommendationDescription}`}
+            language="en"
+          />
 
           <div className="security-task-list">
             {securityTasks.map((task, index) => {
@@ -1123,35 +1345,299 @@ const securityStatus =
         </section>
 
 
-        <section id="incident-response" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
+        <section id="firewall-checkup" className="content-card">
+          <div className="card-heading">
+            <div>
+              <h2>Firewall Security Checkup</h2>
+              <p>Use this guided checklist to review your device's firewall settings.</p>
+            </div>
+            <span className="demo-tag">GUIDED CHECK</span>
+          </div>
+
+          <label htmlFor="firewall-platform">Choose your operating system</label>
+          <select
+            id="firewall-platform"
+            value={firewallPlatform}
+            onChange={(event) => setFirewallPlatform(event.target.value as 'mac' | 'windows')}
+            style={{ display: 'block', width: '100%', margin: '8px 0 16px', padding: '10px' }}
+          >
+            <option value="mac">macOS</option>
+            <option value="windows">Windows</option>
+          </select>
+
+          <p>
+            {firewallPlatform === 'mac'
+              ? 'On your Mac, open System Settings → Network → Firewall (the exact location may vary by macOS version).'
+              : 'On Windows, open Windows Security → Firewall & network protection and review each network profile.'}
+          </p>
+
+          <div className="security-task-list">
+            {firewallTasks.map((task) => {
+              const checked = completedFirewallTasks.includes(task.id)
+              return (
+                <label className={`security-task ${checked ? 'completed' : ''}`} key={task.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => setCompletedFirewallTasks((current) =>
+                      checked ? current.filter((id) => id !== task.id) : [...current, task.id]
+                    )}
+                  />
+                  <span className="task-copy">
+                    <strong>{task.title}</strong>
+                    <span>{task.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="checklist-progress">
+            <div className="progress-label">
+              <span>Checklist progress</span>
+              <strong>{completedFirewallTasks.length} of {firewallTasks.length} verified</strong>
+            </div>
+            <div className="progress-track" role="progressbar" aria-label="Firewall checklist progress" aria-valuemin={0} aria-valuemax={firewallTasks.length} aria-valuenow={completedFirewallTasks.length}>
+              <div className="progress-fill" style={{ width: `${completedFirewallTasks.length / firewallTasks.length * 100}%` }} />
+            </div>
+          </div>
+
+          <p role="status" className="checklist-note">
+            {completedFirewallTasks.length === firewallTasks.length
+              ? 'All checklist items marked complete. Recheck these settings after major system changes.'
+              : 'Only check items after verifying them in your device settings.'}
+          </p>
+          <p className="disclaimer">
+            ShieldPocket does not inspect or change your device firewall. This checklist records your own assessment.
+          </p>
+        </section>
+
+        <section id="cookie-privacy" className="content-card">
+          <div className="card-heading">
+            <div>
+              <h2>Cookie & Privacy Checker</h2>
+              <p>Review a website's cookie notice and select any concerns you observed.</p>
+            </div>
+            <span className="demo-tag">PRIVACY REVIEW</span>
+          </div>
+
+          <p>
+            Essential cookies can support logins and security. Analytics and advertising cookies may involve additional tracking. Their purpose and legal requirements depend on the website and your location.
+          </p>
+
+          <div className="security-task-list">
+            {cookieConcerns.map((concern) => {
+              const checked = selectedCookieConcerns.includes(concern.id)
+              return (
+                <label className={`security-task ${checked ? 'completed' : ''}`} key={concern.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => setSelectedCookieConcerns((current) =>
+                      checked ? current.filter((id) => id !== concern.id) : [...current, concern.id]
+                    )}
+                  />
+                  <span className="task-copy">
+                    <strong>{concern.label}</strong>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="analysis-result" role="status" aria-live="polite">
+            <h3>Privacy review</h3>
+            {selectedCookieConcerns.length === 0 ? (
+              <p>No concerns selected yet. Review the website's cookie notice and consent settings; an empty selection does not mean the site is private or safe.</p>
+            ) : (
+              <>
+                <p>{selectedCookieConcerns.length} potential privacy concern(s) selected for further review.</p>
+                <ul>
+                  {selectedCookieConcerns.map((id) => (
+                    <li key={id}>{cookieConcerns.find((item) => item.id === id)?.label}</li>
+                  ))}
+                </ul>
+                <p>Recommended action: review the site's privacy policy and available cookie preferences. Disable optional tracking when appropriate for your needs.</p>
+              </>
+            )}
+          </div>
+
+          <p className="disclaimer">
+            This is a self-assessment, not an automatic cookie scan or legal compliance determination. ShieldPocket cannot read another website's cookies from this checklist.
+          </p>
+        </section>
+
+
+        <section id="password-checker" className="content-card password-checker">
+          <div className="card-heading">
+            <div>
+              <h2>Password Security Checker</h2>
+              <p>Review password length and common weakness patterns on this device.</p>
+            </div>
+            <span className="demo-tag">LOCAL CHECK</span>
+          </div>
+
+          <div className="password-privacy-note">
+            <strong>Privacy first:</strong> Use a made-up sample, not a real password.
+            This checker evaluates text in this page and does not save or send it.
+          </div>
+
+          <label htmlFor="password-check-input">Sample password</label>
+          <div className="password-input-row">
+            <input
+              id="password-check-input"
+              className="password-check-input"
+              type={showPasswordCheckInput ? 'text' : 'password'}
+              value={passwordCheckInput}
+              onChange={(event) => setPasswordCheckInput(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Enter a sample password"
+            />
+            <button
+              type="button"
+              className="password-toggle-button"
+              onClick={() => setShowPasswordCheckInput((shown) => !shown)}
+              aria-pressed={showPasswordCheckInput}
+            >
+              {showPasswordCheckInput ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          <div className="password-meter" role="status" aria-live="polite">
+            <div className="password-meter-heading">
+              <strong>Estimated strength: {passwordAssessment.label}</strong>
+              <span>{passwordCheckInput ? `${passwordAssessment.score}/6` : '—'}</span>
+            </div>
+            <div
+              className="progress-track"
+              role="progressbar"
+              aria-label="Estimated password strength"
+              aria-valuemin={0}
+              aria-valuemax={6}
+              aria-valuenow={passwordAssessment.score}
+            >
+              <div
+                className="progress-fill"
+                style={{ width: `${(passwordAssessment.score / 6) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {passwordCheckInput && (
+            <>
+              <div className="password-feedback">
+                <h3>Potential weaknesses</h3>
+                {passwordAssessment.warnings.length ? (
+                  <ul>
+                    {passwordAssessment.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No listed common-pattern warning was detected. That does not prove the password is secure or unique.</p>
+                )}
+              </div>
+
+              <div className="password-feedback">
+                <h3>Recommendations</h3>
+                <ul>
+                  {passwordAssessment.suggestions.map((suggestion) => (
+                    <li key={suggestion}>{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setPasswordCheckInput('')
+              setShowPasswordCheckInput(false)
+            }}
+          >
+            Clear sample
+          </button>
+
+          <p className="disclaimer">
+            This is a basic heuristic, not a password-cracking test, breach lookup, or guarantee of security.
+            The score does not check whether a password has appeared in data breaches. Avoid entering real passwords.
+          </p>
+        </section>
+
+         <section id="incident-response" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>What is ShieldPocket?</summary>
-            <p>ShieldPocket is a cybersecurity copilot prototype that helps small businesses recognize suspicious messages, review common security practices, and learn general incident-response steps.</p>
+            <p>ShieldPocket is a cybersecurity awareness tool for small businesses. It provides suspicious-message analysis, security checklists, password-strength guidance, privacy self-assessments, and incident-response information. It is an assistance tool, not a replacement for professional security services.</p>
           </details>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
-            <summary>How does the threat analyzer work?</summary>
-            <p>It checks message text against built-in patterns associated with warning signs such as urgency, login requests, and unusual payment instructions. Its results are guidance, not a definitive threat verdict.</p>
+            <summary>How does the Threat Analyzer work?</summary>
+            <p>The analyzer checks text you provide for built-in patterns associated with warning signs such as urgency, login requests, and unusual payment instructions. Its results are guidance, not a definitive threat verdict.</p>
           </details>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
-            <summary>Does it use live AI or scan the internet for threats?</summary>
-            <p>No. The current analyzer uses local pattern matching. It does not connect to a live AI model or threat-intelligence feed, so it may miss threats or flag legitimate messages for review.</p>
+            <summary>Does the Threat Analyzer use live AI or scan the internet?</summary>
+            <p>The current analyzer uses built-in pattern matching. It does not connect to a live AI model or threat-intelligence feed, and it may miss threats or flag legitimate messages for review.</p>
           </details>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>Are my messages uploaded or saved?</summary>
-            <p>Message analysis runs locally in this prototype. Avoid entering passwords, verification codes, financial details, or other sensitive information. Data handling may differ when saving reports or using connected services in other versions.</p>
+            <p>Message analysis runs locally in the current implementation. If you choose to save a security report while signed in, report data is sent to the connected Supabase service. Avoid entering passwords, verification codes, financial details, or other sensitive information into the analyzer.</p>
           </details>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>Can ShieldPocket guarantee a message is safe?</summary>
-            <p>No. A low-warning result does not prove a message is safe. Verify unexpected requests through a trusted, independent contact method before clicking links, opening attachments, sharing information, or sending money.</p>
+            <p>No. A low-warning result does not prove that a message is safe. Verify unexpected requests through a trusted, independent contact method before clicking links, opening attachments, sharing information, or sending money.</p>
           </details>
+
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
-            <summary>What if I already clicked a suspicious link?</summary>
-            <p>Stop interacting with the page. If you entered a password, change it using the official service on a trusted device, review active sessions, and contact your IT or security team when appropriate. Contact your bank promptly if money or payment details were involved.</p>
+            <summary>What does Security Checkup do?</summary>
+            <p>Security Checkup helps you review common practices such as multifactor authentication, software updates, backups, unique passwords, and access permissions. It provides a checklist and recommendations; completing it does not certify that your business or device is secure.</p>
           </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>Does Firewall Checkup change my firewall settings?</summary>
+            <p>No. Firewall Checkup provides platform-specific guidance and a checklist for you to review. ShieldPocket does not inspect or change your device firewall automatically.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>Does Cookie & Privacy Checker scan a website?</summary>
+            <p>No. It is a self-assessment tool where you select privacy concerns you have observed in a website's cookie notice or settings. It does not read another website's cookies or determine legal compliance.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>How should I use Password Security Checker?</summary>
+            <p>Enter a made-up sample rather than a real password. The checker uses basic local heuristics to estimate strength and identify common weakness patterns. It does not crack passwords, check breach databases, or guarantee that a password is secure.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What can the Sophia voice assistant do?</summary>
+            <p>Sophia supports voice interactions for selected workspace navigation and security-analysis commands. Its available actions are limited to the features implemented in ShieldPocket; it does not independently access your email inbox or connected accounts.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is Incident Response for?</summary>
+            <p>It provides general guidance for responding to suspicious activity. If you entered a password on a suspicious page, change it through the official service on a trusted device, review active sessions, and contact your IT or security team when appropriate. Contact your bank promptly if financial information or money was involved.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>How do Saved Reports work?</summary>
+            <p>Sign in to save and manage supported security reports through the connected Supabase service. Saved reports are associated with your account. Do not include sensitive credentials or other private information in reports.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>How do sign-in and account deletion work?</summary>
+            <p>Account access uses the configured Supabase authentication service. If account deletion is available in your workspace, follow the in-app confirmation steps. Deletion requests use the connected account-deletion function; contact support if the app reports that deletion could not be confirmed.</p>
+          </details>
+
           <details style={{ padding: "12px 0" }}>
-            <summary>Does this replace a cybersecurity professional?</summary>
-            <p>No. This is a demonstration tool for general awareness. Significant incidents, suspected malware, compromised business accounts, and financial fraud may require qualified security or incident-response support.</p>
+            <summary>How does Face ID work?</summary>
+            <p>On supported devices, ShieldPocket can use the device's biometric-authentication capability to unlock the protected workspace. Availability depends on device support and system settings. Keep your device passcode secure and follow the on-screen instructions if authentication fails.</p>
           </details>
         </section>
 
@@ -1164,13 +1650,20 @@ const securityStatus =
           <div className="face-lock-card">
             <div className="face-lock-symbol" aria-hidden="true">✓</div>
             <p className="face-lock-eyebrow">SHIELDPOCKET</p>
-            <h1 id="face-lock-title">Workspace locked</h1>
-            <p>Authenticate to access your security workspace and saved reports.</p>
+            <h1 id="face-lock-title">
+              {authMode === 'signup' ? 'Create your ShieldPocket account' : 'Workspace locked'}
+            </h1>
+            <p>
+              {authMode === 'signup'
+                ? 'Create an account to get started. Email confirmation may be required.'
+                : 'Authenticate to access your security workspace and saved reports.'}
+            </p>
 
             {faceLockMessage && <p className="face-lock-message" role="alert">{faceLockMessage}</p>}
+            {authMessage && <p role="status" aria-live="polite">{authMessage}</p>}
 
             <form
-              onSubmit={handleLockPasswordSignIn}
+              onSubmit={authMode === 'signup' ? handleAuthSubmit : handleLockPasswordSignIn}
               style={{ display: 'grid', gap: '10px', marginTop: '16px' }}
             >
               <label style={{ display: 'grid', gap: '6px', textAlign: 'left' }}>
@@ -1190,7 +1683,7 @@ const securityStatus =
                 Password
                 <input
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -1204,19 +1697,15 @@ const securityStatus =
                 className="primary-button face-lock-button"
                 disabled={authLoading || faceLockBusy}
               >
-                {authLoading ? 'Signing in…' : 'Unlock with email and password'}
+                {authLoading
+                  ? 'Please wait…'
+                  : authMode === 'signup'
+                    ? 'Create account'
+                    : 'Unlock with email and password'}
               </button>
             </form>
 
-            <button
-              type="button"
-              className="primary-button face-lock-button"
-              onClick={() => void handleLockPasskeySignIn()}
-              disabled={authLoading || faceLockBusy}
-              style={{ marginTop: '10px' }}
-            >
-              {authLoading ? 'Waiting for passkey…' : 'Unlock with passkey'}
-            </button>
+            
 
             <button
               type="button"
@@ -1226,6 +1715,22 @@ const securityStatus =
               style={{ marginTop: '10px' }}
             >
               {faceLockBusy ? 'Waiting for authentication…' : 'Unlock with Face ID'}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button face-lock-button"
+              onClick={() => {
+                setAuthMode(authMode === 'signin' ? 'signup' : 'signin')
+                setAuthMessage('')
+                setFaceLockMessage('')
+              }}
+              disabled={authLoading || faceLockBusy}
+              style={{ marginTop: '10px' }}
+            >
+              {authMode === 'signin'
+                ? 'Need an account? Create one'
+                : 'Already have an account? Sign in'}
             </button>
           </div>
         </div>

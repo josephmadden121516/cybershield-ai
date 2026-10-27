@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.cybershield.ai',
-  appName: 'CyberShield AI',
+  appId: 'com.shieldpocket.app',
+  appName: 'ShieldPocket',
   webDir: 'dist'
 };
 

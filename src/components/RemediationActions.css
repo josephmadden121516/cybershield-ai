@@ -1,0 +1,64 @@
+.remediation-actions {
+  margin: 16px 0;
+  padding: 16px;
+  color: #e7f0f7;
+  background: #101f30;
+  border: 1px solid #23384b;
+  border-radius: 14px;
+}
+
+.remediation-actions h3 {
+  margin: 0;
+  color: #cbd8e4;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.remediation-actions h3 span {
+  color: #fb7185;
+}
+
+.remediation-actions-note {
+  margin: 8px 0 12px;
+  color: #9cb0c3;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.remediation-action-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.remediation-action-button {
+  padding: 9px 12px;
+  color: #fff;
+  background: #4f46e5;
+  border: 1px solid #6366f1;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.remediation-action-button:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.remediation-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.remediation-action-button.completed {
+  color: #a7f3d0;
+  background: #064e3b;
+  border-color: #047857;
+}
+
+.remediation-action-error {
+  margin: 12px 0 0;
+  color: #fda4af;
+  font-size: 12px;
+}
