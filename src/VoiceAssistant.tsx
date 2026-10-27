@@ -393,12 +393,34 @@ export default function VoiceAssistant({
       speak(reply)
     } catch (error) {
       console.error('Sophia chat request failed.')
-      const errorMessage =
+      let errorMessage =
         error instanceof Error
           ? error.message
           : spanish
             ? 'Sophia no pudo responder. Inténtalo de nuevo.'
             : 'Sophia could not respond. Please try again.'
+
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        'context' in error &&
+        error.context instanceof Response
+      ) {
+        const responseBody: unknown = await error.context
+          .clone()
+          .json()
+          .catch(() => null)
+
+        if (
+          responseBody !== null &&
+          typeof responseBody === 'object' &&
+          'error' in responseBody &&
+          typeof responseBody.error === 'string'
+        ) {
+          errorMessage = responseBody.error
+        }
+      }
+
       setChatError(errorMessage)
       setStatus(errorMessage)
     } finally {
