@@ -1214,6 +1214,35 @@ const securityGrade =
         <VoiceAssistant
           language={assistantLanguage}
           onLanguageChange={setAssistantLanguage}
+          checklistTasks={securityTasks.map((task, index) => ({
+            title: task.title,
+            titleEs: [
+              'Activar la autenticación multifactor',
+              'Activar las actualizaciones automáticas',
+              'Proteger los respaldos',
+              'Usar contraseñas únicas',
+              'Limitar los permisos de las cuentas',
+              'Preparar un plan de incidentes',
+            ][index],
+            aliases: [
+              ['mfa', 'multifactor authentication', 'autenticacion multifactor', 'autenticacion de dos factores'],
+              ['automatic updates', 'actualizaciones automaticas'],
+              ['backups', 'respaldos'],
+              ['unique passwords', 'contrasenas unicas', 'password manager', 'gestor de contrasenas'],
+              ['permissions', 'permisos', 'administrator access', 'acceso de administrador'],
+              ['incident plan', 'plan de incidentes', 'incident response plan'],
+            ][index],
+            completed: completedTasks.includes(index),
+          }))}
+          onToggleChecklistTask={(index, completed) => {
+            if (completedTasks.includes(index) !== completed) toggleTask(index)
+          }}
+          onGenerateSecurityPlan={() => {
+            if (securityPlanLoading) return 'busy'
+            if (securityPlanKey === currentSecurityPlanKey) return 'current'
+            void generateSecurityPlan()
+            return 'started'
+          }}
           onNavigate={(section) => {
             if (section === 'overview') {
               window.scrollTo({ top: 0, behavior: 'smooth' })

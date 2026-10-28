@@ -10,6 +10,14 @@ interface VoiceAssistantProps {
   onNavigate: (section: string) => void
   onAnalyzeMessage: (text: string) => void
   onSetMessage: (text: string) => void
+  checklistTasks: Array<{
+    title: string
+    titleEs: string
+    aliases: string[]
+    completed: boolean
+  }>
+  onToggleChecklistTask: (index: number, completed: boolean) => void
+  onGenerateSecurityPlan: () => 'started' | 'current' | 'busy'
 }
 
 interface SpeechResult {
@@ -50,6 +58,9 @@ export default function VoiceAssistant({
   onNavigate,
   onAnalyzeMessage,
   onSetMessage,
+  checklistTasks,
+  onToggleChecklistTask,
+  onGenerateSecurityPlan,
 }: VoiceAssistantProps) {
   const [command, setCommand] = useState('')
   const [status, setStatus] = useState('Escribe un comando o usa el micrófono.')
@@ -246,11 +257,27 @@ export default function VoiceAssistant({
       .toLocaleLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/["'“”‘’.,!?]/g, '')
+      .replace(/["'“”‘’.,!?¿¡]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
 
     const spanish = language === 'es'
+
+    if (/^(switch to english|change language to english|use english|cambia a ingles|cambiar a ingles|usa ingles)$/.test(normalized)) {
+      onLanguageChange('en')
+      const languageMessage = spanish ? 'Cambiando a inglés.' : 'Sophia switched to English.'
+      setStatus(languageMessage)
+      speak(languageMessage)
+      return
+    }
+
+    if (/^(switch to spanish|change language to spanish|use spanish|cambia a espanol|cambiar a espanol|usa espanol)$/.test(normalized)) {
+      onLanguageChange('es')
+      const languageMessage = spanish ? 'Sophia cambió a español.' : 'Switching Sophia to Spanish.'
+      setStatus(languageMessage)
+      speak(languageMessage)
+      return
+    }
 
     if (!text) {
       setStatus(spanish ? 'Escribe o di un comando primero.' : 'Please type or say a command first.')
@@ -261,10 +288,114 @@ export default function VoiceAssistant({
 
     if (/^(help|commands|ayuda|comandos|show commands|muestra comandos)$/.test(normalized)) {
       const helpMessage = spanish
-        ? 'Puedo abrir el analizador de amenazas, la revisión de seguridad, la respuesta a incidentes, el estado del dispositivo móvil, el firewall, la privacidad de cookies o el verificador de contraseñas. También puedes hacerme una pregunta de ciberseguridad.'
-        : 'I can open the Threat Analyzer, Security Checkup, Incident Response, Mobile Device Posture, Firewall Checkup, Cookie Privacy, or Password Checker. You can also ask me a cybersecurity question.'
+        ? 'Puedo abrir las herramientas, analizar un mensaje que dictes, leer el progreso de seguridad, marcar una tarea específica como completada si me lo indicas, generar el plan de seguridad con IA cuando lo pidas, cambiar de idioma o responder preguntas de ciberseguridad.'
+        : 'I can open app tools, analyze a message you dictate, read your security checklist progress, mark a specific checklist task complete when you ask, generate the AI security plan on request, switch languages, and answer cybersecurity questions.'
       setStatus(helpMessage)
       speak(helpMessage)
+      return
+    }
+
+    if (
+      /^(what is my security score|whats my security score|how is my security|how is my security checklist|read my security progress|checklist status|how many security tasks are complete|como va mi seguridad|como esta mi seguridad|lee mi progreso de seguridad|estado de la lista|cuantas tareas de seguridad he completado)$/.test(normalized)
+    ) {
+      const completedCount = checklistTasks.filter((task) => task.completed).length
+      const nextTask = checklistTasks.find((task) => !task.completed)
+      const progressMessage = spanish
+        ? `Has completado ${completedCount} de ${checklistTasks.length} tareas de seguridad. ${nextTask ? `El siguiente paso de la lista es: ${nextTask.titleEs}.` : 'Completaste todas las tareas de la lista. Revisa los controles con regularidad.'}`
+        : `You have completed ${completedCount} of ${checklistTasks.length} security tasks. ${nextTask ? `The next checklist task is: ${nextTask.title}.` : 'You completed every checklist task. Review your controls regularly.'}`
+      setStatus(progressMessage)
+      speak(progressMessage)
+      return
+    }
+
+    if (/^(what should i do next|whats next|what is next|next security task|what is my next step|que sigue|que debo hacer ahora|cual es el siguiente paso)$/.test(normalized)) {
+      const nextTask = checklistTasks.find((task) => !task.completed)
+      const nextMessage = nextTask
+        ? spanish
+          ? `El siguiente paso sugerido es: ${nextTask.titleEs}. ${checklistTasks.filter((task) => task.completed).length} de ${checklistTasks.length} tareas están marcadas.`
+          : `Your next suggested step is: ${nextTask.title}. ${checklistTasks.filter((task) => task.completed).length} of ${checklistTasks.length} tasks are marked complete.`
+        : spanish
+          ? 'Todas las tareas de la lista están marcadas. Revisa periódicamente que los controles sigan activos.'
+          : 'Every checklist task is marked. Review periodically to make sure the controls remain in place.'
+      setStatus(nextMessage)
+      speak(nextMessage)
+      return
+    }
+
+    const taskAction = normalized.match(
+      /^(?:please )?(mark|check off|complete|finish|uncheck|reopen|marca|marcar|completa|completar|desmarca|desmarcar)\s+(?:the\s+)?(.+?)(?:\s+(?:as\s+)?(complete|completed|done|incomplete|not complete|pendiente|completada|completado|incompleta|incompleto))?$/
+    )
+    if (taskAction) {
+      const [, action, taskName, finalStatus] = taskAction
+      const requestedTask = taskName.trim()
+      const shouldComplete =
+        finalStatus
+          ? !/\b(incomplete|not complete|pendiente|incompleta|incompleto)\b$/.test(finalStatus)
+          : !/^(uncheck|reopen|desmarca|desmarcar)$/.test(action)
+      const taskIndex = checklistTasks.findIndex((task) =>
+        [task.title, task.titleEs, ...task.aliases].some((alias) =>
+          requestedTask.includes(
+            alias
+              .toLocaleLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+          )
+        )
+      )
+
+      if (taskIndex === -1) {
+        const unknownTask = spanish
+          ? 'No reconocí esa tarea de la lista. Di su nombre completo o pregunta “ayuda”.'
+          : 'I could not match that checklist task. Say its full name or ask for “help”.'
+        setStatus(unknownTask)
+        speak(unknownTask)
+        return
+      }
+
+      if (checklistTasks[taskIndex].completed === shouldComplete) {
+        const alreadySet = spanish
+          ? shouldComplete
+            ? 'Esa tarea ya está marcada como completada.'
+            : 'Esa tarea ya está pendiente.'
+          : shouldComplete
+            ? 'That task is already marked complete.'
+            : 'That task is already marked incomplete.'
+        setStatus(alreadySet)
+        speak(alreadySet)
+        return
+      }
+
+      onToggleChecklistTask(taskIndex, shouldComplete)
+      const taskMessage = spanish
+        ? `${checklistTasks[taskIndex].titleEs}: marcada como ${shouldComplete ? 'completada' : 'pendiente'}. Esto registra tu confirmación; no verifica el control.`
+        : `${checklistTasks[taskIndex].title}: marked ${shouldComplete ? 'complete' : 'incomplete'}. This records your confirmation; it does not verify the control.`
+      setStatus(taskMessage)
+      speak(taskMessage)
+      return
+    }
+
+    if (
+      /^(?:generate|create|make|build|genera|generar|crea|crear)\s+(?:my\s+|a\s+|the\s+|mi\s+|un\s+|el\s+)?(?:ai\s+|ia\s+)?(?:security|safety|seguridad)\s+(?:action\s+)?plan$/.test(normalized) ||
+      /^(?:generate|create|make|genera|generar|crea|crear)\s+(?:my\s+|mi\s+)?(?:ai\s+|ia\s+)?plan(?: de seguridad)?$/.test(normalized)
+    ) {
+      const planMessage = spanish
+        ? 'Generando tu plan de seguridad con IA según el progreso de la lista.'
+        : 'Generating your AI security plan from the checklist progress.'
+      const requestStatus = onGenerateSecurityPlan()
+      if (requestStatus !== 'started') {
+        const requestMessage = requestStatus === 'busy'
+          ? spanish
+            ? 'Ya se está generando un plan. Espera a que termine.'
+            : 'A plan is already being generated. Please wait for it to finish.'
+          : spanish
+            ? 'Tu plan ya está actualizado para el estado actual de la lista. No se envió otra solicitud de IA.'
+            : 'Your plan is already up to date for the current checklist. No additional AI request was sent.'
+        setStatus(requestMessage)
+        speak(requestMessage)
+        return
+      }
+      setStatus(planMessage)
+      speak(planMessage)
       return
     }
 
@@ -566,8 +697,8 @@ export default function VoiceAssistant({
           <h2>{language === 'es' ? 'Sophia — Asistente de seguridad' : 'Sophia — Security Assistant'}</h2>
           <p>
             {language === 'es'
-              ? 'Usa tu voz o escribe para navegar las herramientas de seguridad y revisar un mensaje.'
-              : 'Use voice or text to navigate security tools and check a message.'}
+              ? 'Usa tu voz para abrir herramientas, revisar la lista de seguridad, crear un plan y analizar mensajes.'
+              : 'Use your voice to open tools, review your security checklist, create a plan, and analyze messages.'}
           </p>
         </div>
         <span className="demo-tag">VOICE BETA</span>
@@ -713,6 +844,10 @@ export default function VoiceAssistant({
               <li>“Abre el estado del dispositivo móvil”</li>
               <li>“Abre la respuesta a incidentes”</li>
               <li>“Analiza correo:”, seguido del mensaje que quieres revisar</li>
+              <li>“¿Cómo va mi seguridad?” para escuchar el progreso de la lista</li>
+              <li>“Marca activar MFA como completada” para registrar una tarea verificada por ti</li>
+              <li>“Genera mi plan de seguridad” para pedir un plan con IA</li>
+              <li>“Cambia a inglés” para cambiar el idioma de Sophia</li>
             </>
           ) : (
             <>
@@ -722,6 +857,10 @@ export default function VoiceAssistant({
               <li>“Open mobile posture”</li>
               <li>“Open incident response”</li>
               <li>“Analyze email:” followed by the message you want checked</li>
+              <li>“How is my security?” to hear checklist progress</li>
+              <li>“Mark enable multifactor authentication complete” to record a task you verified</li>
+              <li>“Generate my security plan” to request an AI plan</li>
+              <li>“Switch to Spanish” to change Sophia’s language</li>
             </>
           )}
         </ul>
