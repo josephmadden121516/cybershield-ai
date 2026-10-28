@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import type { IncidentResponseProgress } from './incidentResponseProgress'
 import './IncidentResponseKit.css'
 
 type Language = 'en' | 'es'
@@ -234,9 +235,13 @@ function persistData(data: IncidentKitData): boolean {
 
 interface IncidentResponseKitProps {
   language: Language
+  onProgressChange: (progress: IncidentResponseProgress) => void
 }
 
-export function IncidentResponseKit({ language }: IncidentResponseKitProps) {
+export function IncidentResponseKit({
+  language,
+  onProgressChange,
+}: IncidentResponseKitProps) {
   const [stored, setStored] = useState<IncidentKitState>(loadData)
   const [scenario, setScenario] = useState<ScenarioId>('account')
   const [status, setStatus] = useState('')
@@ -244,6 +249,24 @@ export function IncidentResponseKit({ language }: IncidentResponseKitProps) {
   const data = stored.data
   const playbook = playbooks[language][scenario]
   const completed = data.completed[scenario]
+
+  useEffect(() => {
+    const scenarios: ScenarioId[] = ['account', 'ransomware', 'payment', 'device']
+    onProgressChange({
+      scenarios: scenarios.map((scenarioId) => {
+        const scenarioPlaybook = playbooks[language][scenarioId]
+        const completedIds = data.completed[scenarioId]
+        return {
+          scenarioTitle: scenarioPlaybook.title,
+          completedSteps: scenarioPlaybook.steps
+            .filter((step) => completedIds.includes(step.id))
+            .map((step) => step.title),
+          totalSteps: scenarioPlaybook.steps.length,
+        }
+      }),
+      storageError: stored.storageError,
+    })
+  }, [data.completed, language, onProgressChange, stored.storageError])
 
   function updateData(next: IncidentKitData) {
     const saved = persistData(next)

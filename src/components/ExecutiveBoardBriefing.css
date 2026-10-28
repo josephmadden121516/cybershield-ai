@@ -1,0 +1,91 @@
+.executive-board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.executive-board-actions .primary-button,
+.executive-board-actions .secondary-button {
+  margin-top: 0;
+}
+
+.executive-board-privacy,
+.executive-board-warning {
+  margin: 14px 0 0;
+  color: #94aabd;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.executive-board-warning {
+  color: #ffd38a;
+}
+
+.executive-board-output {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #091725;
+}
+
+.executive-board-output h3 {
+  margin: 0 0 12px;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.executive-board-output pre {
+  margin: 0;
+  color: #c7d6e4;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  body.printing-executive-briefing * {
+    visibility: hidden !important;
+  }
+
+  body.printing-executive-briefing .executive-board-briefing,
+  body.printing-executive-briefing .executive-board-briefing * {
+    visibility: visible !important;
+  }
+
+  body.printing-executive-briefing .executive-board-briefing {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    background: white;
+    color: black;
+  }
+
+  body.printing-executive-briefing .executive-board-output {
+    border-color: #b8b8b8;
+    background: white;
+  }
+
+  body.printing-executive-briefing .executive-board-briefing .demo-tag {
+    background: white;
+  }
+
+  body.printing-executive-briefing .executive-board-briefing h2,
+  body.printing-executive-briefing .executive-board-briefing h3,
+  body.printing-executive-briefing .executive-board-briefing p,
+  body.printing-executive-briefing .executive-board-briefing pre,
+  body.printing-executive-briefing .executive-board-briefing span {
+    color: black !important;
+  }
+
+  body.printing-executive-briefing .executive-board-actions,
+  body.printing-executive-briefing .executive-board-privacy {
+    display: none !important;
+  }
+}

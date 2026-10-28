@@ -10,6 +10,8 @@ import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
 import { PhishingResponseGuide } from './components/PhishingResponseGuide'
 import { IncidentResponseKit } from './components/IncidentResponseKit'
+import { ExecutiveBoardBriefing } from './components/ExecutiveBoardBriefing'
+import type { IncidentResponseProgress } from './components/incidentResponseProgress'
 import {
   SecurityActivityTimeline,
   type SecurityActivityEvent,
@@ -265,6 +267,8 @@ function App() {
     () => loadSecurityActivityEvents('guest')
   )
   const [activityStorageError, setActivityStorageError] = useState(false)
+  const [incidentProgress, setIncidentProgress] =
+    useState<IncidentResponseProgress>({ scenarios: [], storageError: false })
   const [reports, setReports] = useState<SecurityReport[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
   const [reportMessage, setReportMessage] = useState('')
@@ -1607,6 +1611,17 @@ const securityGrade =
           onClear={clearActivity}
         />
 
+        <ExecutiveBoardBriefing
+          language={assistantLanguage}
+          activityEvents={activityEvents}
+          savedReports={reports}
+          incidentProgress={incidentProgress}
+          checklistTasks={securityTasks.map((task, index) => ({
+            title: task.title,
+            completed: completedTasks.includes(index),
+          }))}
+        />
+
         <section id="threat-analyzer" className="content-card">
           <div className="card-heading">
             <div>
@@ -2302,7 +2317,10 @@ const securityGrade =
           </p>
         </section>
 
-        <IncidentResponseKit language={assistantLanguage} />
+        <IncidentResponseKit
+          language={assistantLanguage}
+          onProgressChange={setIncidentProgress}
+        />
 
          <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>

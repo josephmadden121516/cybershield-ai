@@ -28,6 +28,7 @@ Supabase Auth, Database, and Edge Functions
 - **Screenshot analysis is opt-in.** The user selects an image, explicitly consents, then starts the request. The browser resizes it to at most 1600 px, converts it to JPEG, and sends it through Supabase to Meta for analysis. ShieldPocket does not store the image. Provider processing and retention are subject to provider policies; redact sensitive details before upload.
 - **Messages are not silently saved.** Message text sent for AI analysis is processed by the configured Supabase function and Meta. An analysis report is stored only when a signed-in user chooses to save it; a saved report contains the submitted text, assessment, and findings. Review it for sensitive information first.
 - **Activity history stays on the device.** It records security actions, not message content, and is stored locally in the browser/device.
+- **Board briefings are generated locally.** They summarize recent device activity, self-reported checklist and incident-playbook progress, and up to 20 saved threat reports. No AI request is made; chat transcripts and unsaved message contents are excluded. Review a briefing before downloading, printing, or sharing it.
 - **The checklist may sync to Supabase for signed-in accounts.** Account authentication and explicitly saved reports use Supabase services.
 - **AI assessments are guidance, not proof.** The analyzer does not visit links, inspect email headers, scan attachments, or query live threat feeds. A low-risk response does not establish that content is safe.
 
@@ -39,6 +40,7 @@ Supabase Auth, Database, and Edge Functions
 - Small-business security checklist and optional AI action plan
 - Offline incident-response playbooks
 - Account-based passkey authentication and saved security reports
+- Local executive board briefings with Markdown download and print-to-PDF
 - Capacitor iOS app using the web app interface
 
 ## Development
