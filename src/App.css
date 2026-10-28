@@ -480,6 +480,60 @@ footer {
   opacity: 0.8;
 }
 
+.security-plan {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 12px;
+  background: rgba(8, 24, 35, 0.55);
+}
+
+.security-plan h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.security-plan p {
+  margin: 0;
+  color: #a7bbcd;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.security-plan .primary-button {
+  width: auto;
+  min-width: 180px;
+}
+
+.security-plan-privacy {
+  max-width: 760px;
+}
+
+.security-plan-message {
+  color: #79e6d5 !important;
+}
+
+.security-plan-result {
+  width: 100%;
+  padding: 14px;
+  border-radius: 9px;
+  background: #0c1926;
+}
+
+.security-plan-result p {
+  white-space: pre-wrap;
+  color: #e3edf5;
+}
+
+@media (max-width: 600px) {
+  .security-plan .primary-button {
+    width: 100%;
+  }
+}
+
 /* Native Face ID lock screen */
 .face-lock-overlay {
   position: fixed;

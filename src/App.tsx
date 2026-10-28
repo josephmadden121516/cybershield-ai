@@ -542,7 +542,11 @@ function App() {
 
 const [checklistReadyForUserId, setChecklistReadyForUserId] =
     useState<string | null>(null)
-  const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
+const [securityPlan, setSecurityPlan] = useState('')
+const [securityPlanKey, setSecurityPlanKey] = useState('')
+const [securityPlanMessage, setSecurityPlanMessage] = useState('')
+const [securityPlanLoading, setSecurityPlanLoading] = useState(false)
+const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
   try {
     const saved = localStorage.getItem('cybershield-completed-tasks')
     return saved ? (JSON.parse(saved) as number[]) : []
@@ -578,6 +582,66 @@ const [checklistReadyForUserId, setChecklistReadyForUserId] =
   const recommendationDescription =
     nextRecommendedTask?.description ??
     'All baseline tasks are complete. Review your controls regularly to make sure they remain effective.'
+  const currentSecurityPlanKey =
+    `${assistantLanguage}:${[...completedTasks].sort((a, b) => a - b).join(',')}`
+
+  async function generateSecurityPlan() {
+    if (!supabase || !isSupabaseConfigured) {
+      setSecurityPlanMessage(
+        assistantLanguage === 'es'
+          ? 'El servicio de IA no está configurado. No se generó ningún plan.'
+          : 'The AI service is not configured. No plan was generated.'
+      )
+      return
+    }
+
+    const checklistStatus = securityTasks
+      .map((task, index) => {
+        const status = completedTasks.includes(index) ? 'COMPLETE' : 'NOT COMPLETE'
+        return `- ${task.title}: ${status}. ${task.description}`
+      })
+      .join('\n')
+    const prompt = assistantLanguage === 'es'
+      ? `Crea un plan breve y práctico para mejorar la seguridad de una pequeña empresa usando únicamente esta lista de verificación. Prioriza primero los elementos incompletos, propón pasos pequeños y realistas y explica el beneficio de cada uno. Si todos están completos, ofrece un plan de mantenimiento. No afirmes que verificaste controles en el dispositivo o la empresa. Responde en español, con prioridades numeradas y un aviso breve de que el plan es orientación general, no una auditoría. Usa texto sin formato, sin marcadores Markdown como asteriscos.\n\nEstado de la lista:\n${checklistStatus}`
+      : `Create a concise, practical security improvement plan for a small business using only this checklist. Prioritize incomplete items first, suggest small realistic steps, and explain the benefit of each. If everything is complete, provide a maintenance plan. Do not claim you verified any controls on the device or in the business. Respond in English, with numbered priorities and a brief note that this is general guidance, not an audit. Use plain text without Markdown markers such as asterisks.\n\nChecklist status:\n${checklistStatus}`
+
+    setSecurityPlanLoading(true)
+    setSecurityPlanMessage(
+      assistantLanguage === 'es'
+        ? 'Generando un plan con el estado de tu lista de verificación…'
+        : 'Generating a plan from your checklist status…'
+    )
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sophia-chat', {
+        body: { message: prompt, history: [] },
+      })
+
+      if (error) throw error
+
+      const reply = typeof data?.reply === 'string' ? data.reply.trim() : ''
+      if (!reply) {
+        throw new Error('The AI function returned no plan.')
+      }
+
+      setSecurityPlan(reply)
+      setSecurityPlanKey(currentSecurityPlanKey)
+      setSecurityPlanMessage(
+        assistantLanguage === 'es'
+          ? 'Plan generado. Se compartieron las tareas integradas y su estado con el servicio de IA.'
+          : 'Plan generated. The built-in checklist tasks and their status were shared with the AI service.'
+      )
+    } catch (error) {
+      console.error('Could not generate the AI security plan.', error)
+      setSecurityPlanMessage(
+        assistantLanguage === 'es'
+          ? 'No se pudo generar el plan con IA. Inténtalo de nuevo más tarde.'
+          : 'Could not generate the AI plan. Please try again later.'
+      )
+    } finally {
+      setSecurityPlanLoading(false)
+    }
+  }
 
   function recordActivity(
     type: SecurityActivityEvent['type'],
@@ -1592,6 +1656,60 @@ const securityGrade =
               ? 'All six items are checked. Review and test these controls regularly.'
               : 'Start with one task at a time. Only check items that your business has actually completed.'}
           </p>
+
+          <div className="security-plan">
+            <div>
+              <h3>{assistantLanguage === 'es' ? 'Plan de seguridad con IA' : 'AI security action plan'}</h3>
+              <p>
+                {assistantLanguage === 'es'
+                  ? 'Obtén prioridades prácticas según las tareas completadas o pendientes.'
+                  : 'Get practical priorities based on the tasks you have and have not completed.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void generateSecurityPlan()}
+              disabled={
+                securityPlanLoading ||
+                securityPlanKey === currentSecurityPlanKey
+              }
+            >
+              {securityPlanLoading
+                ? assistantLanguage === 'es'
+                  ? 'Generando plan…'
+                  : 'Generating plan…'
+                : securityPlanKey === currentSecurityPlanKey
+                  ? assistantLanguage === 'es'
+                    ? 'Plan actualizado'
+                    : 'Plan is up to date'
+                  : assistantLanguage === 'es'
+                    ? 'Generar plan con IA'
+                    : 'Generate AI plan'}
+            </button>
+            <p className="security-plan-privacy">
+              {assistantLanguage === 'es'
+                ? 'Se envían las tareas integradas y su estado; no se envían mensajes sospechosos ni contraseñas. La IA ofrece orientación general, no verifica tus controles.'
+                : 'The built-in checklist tasks and their status are sent; suspicious messages and passwords are not included. AI provides general guidance and does not verify your controls.'}
+            </p>
+            {securityPlanMessage && (
+              <p className="security-plan-message" role="status" aria-live="polite">
+                {securityPlanMessage}
+              </p>
+            )}
+            {securityPlan && securityPlanKey === currentSecurityPlanKey && (
+              <div className="security-plan-result" aria-live="polite">
+                <p>{securityPlan}</p>
+              </div>
+            )}
+            {securityPlan && securityPlanKey !== currentSecurityPlanKey && (
+              <p className="security-plan-message">
+                {assistantLanguage === 'es'
+                  ? 'La lista o el idioma cambió desde que se creó el plan. Genera uno nuevo para actualizarlo.'
+                  : 'The checklist or language changed since this plan was generated. Generate a new one to update it.'}
+              </p>
+            )}
+          </div>
         </section>
 
         <MobileDevicePosture />
