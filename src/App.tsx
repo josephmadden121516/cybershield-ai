@@ -168,6 +168,12 @@ const MAX_SCREENSHOT_DIMENSION = 1600
 const DEFAULT_ANALYZER_MESSAGE =
   'Your business email will be disabled today. Verify your account immediately using this link.'
 
+function getNavigationScrollBehavior(): ScrollBehavior {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ? 'auto'
+    : 'smooth'
+}
+
 async function prepareScreenshotForAnalysis(file: File): Promise<string> {
   const image = await createImageBitmap(file)
 
@@ -277,6 +283,7 @@ function App() {
   const [faceLockBusy, setFaceLockBusy] = useState(false)
   const faceLockBusyRef = useRef(false)
   const faceLockMountedRef = useRef(false)
+  const currentUserId = user?.id
 
   useEffect(() => {
     if (!supabase) return
@@ -305,7 +312,7 @@ function App() {
     let cancelled = false
 
     async function loadPasskeys() {
-      if (!user || !supabase) {
+      if (!currentUserId || !supabase) {
         setHasPasskey(null)
         setPasskeyMessage('')
         return
@@ -330,7 +337,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [currentUserId])
 
 
   // Protect the native workspace on launch and whenever the app resumes.
@@ -647,12 +654,13 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
   const [showPasswordCheckInput, setShowPasswordCheckInput] = useState(false)
   const passwordAssessment = assessPasswordStrength(passwordCheckInput)
 
-  useEffect(() => {
-    if (activeSection !== 'password-checker') {
+  function navigateToSection(section: string) {
+    setActiveSection(section)
+    if (section !== 'password-checker') {
       setPasswordCheckInput('')
       setShowPasswordCheckInput(false)
     }
-  }, [activeSection])
+  }
 
   const nextRecommendedTask = securityTasks.find(
     (_, index) => !completedTasks.includes(index)
@@ -793,7 +801,7 @@ if (suspiciousUrl) {
 }
     
 
-    if (/\burgent(e|ly)?\b|\bimmediately\b|\btoday\b|\bact now\b|\bfinal warning\b|\bexpires? today\b|\bde inmediato\b|\binmediatamente\b|\bactua ahora\b|\hoy\b|\bultima advertencia\b|\bultim(o|a) aviso\b|\bse bloqueara\b|\bsera desactivad[ao]\b/.test(text)) {
+    if (/\burgent(e|ly)?\b|\bimmediately\b|\btoday\b|\bact now\b|\bfinal warning\b|\bexpires? today\b|\bde inmediato\b|\binmediatamente\b|\bactua ahora\b|\bhoy\b|\bultima advertencia\b|\bultim(o|a) aviso\b|\bse bloqueara\b|\bsera desactivad[ao]\b/.test(text)) {
       warnings.push(spanish
         ? 'Usa urgencia o presión para que actúes rápidamente'
         : 'Uses urgency or pressure to make you act quickly')
@@ -1149,7 +1157,7 @@ if (suspiciousUrl) {
     let cancelled = false
 
     async function loadChecklist() {
-      if (!user || !supabase) {
+      if (!currentUserId || !supabase) {
         setChecklistReadyForUserId(null)
         return
       }
@@ -1159,7 +1167,7 @@ if (suspiciousUrl) {
       const { data, error } = await supabase
         .from('security_checklist_progress')
         .select('completed_tasks')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .maybeSingle()
 
       if (cancelled) return
@@ -1204,7 +1212,7 @@ if (suspiciousUrl) {
         const { error: insertError } = await supabase
           .from('security_checklist_progress')
           .upsert({
-            user_id: user.id,
+            user_id: currentUserId,
             completed_tasks: initialTasks,
             updated_at: new Date().toISOString(),
           })
@@ -1221,7 +1229,7 @@ if (suspiciousUrl) {
         setCompletedTasks(initialTasks)
       }
 
-      setChecklistReadyForUserId(user.id)
+      setChecklistReadyForUserId(currentUserId)
     }
 
     void loadChecklist()
@@ -1229,19 +1237,20 @@ if (suspiciousUrl) {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [currentUserId])
 
   // Save only after this signed-in user's cloud checklist has loaded.
   useEffect(() => {
-    if (!user || !supabase || checklistReadyForUserId !== user.id) return
+    if (!currentUserId || !supabase || checklistReadyForUserId !== currentUserId) return
+    const client = supabase
 
     let cancelled = false
 
     async function saveChecklist() {
-      const { error } = await supabase!
+      const { error } = await client
         .from('security_checklist_progress')
         .upsert({
-          user_id: user!.id,
+          user_id: currentUserId,
           completed_tasks: completedTasks,
           updated_at: new Date().toISOString(),
         })
@@ -1256,13 +1265,13 @@ if (suspiciousUrl) {
     return () => {
       cancelled = true
     }
-  }, [user?.id, checklistReadyForUserId, completedTasks])
+  }, [currentUserId, checklistReadyForUserId, completedTasks])
   // Load the signed-in user's saved security reports.
   useEffect(() => {
     let cancelled = false
 
     async function loadReports() {
-      if (!user || !supabase) {
+      if (!currentUserId || !supabase) {
         setReports([])
         setReportsLoading(false)
         return
@@ -1273,7 +1282,7 @@ if (suspiciousUrl) {
       const { data, error } = await supabase
         .from('security_reports')
         .select('id, message_text, risk_level, findings, summary, created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -1294,7 +1303,7 @@ if (suspiciousUrl) {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [currentUserId])
 
   const completedCount = completedTasks.length
   const progress = Math.round((completedCount / securityTasks.length) * 100)
@@ -1308,7 +1317,7 @@ const securityGrade =
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <img className="brand-logo" src="/ShieldPocket.png" alt="ShieldPocket logo" />
+          <img className="brand-logo" src="/ShieldPocket.png" alt="" />
           <div>
             <strong>ShieldPocket</strong>
             <small>Secure Defense</small>
@@ -1316,16 +1325,17 @@ const securityGrade =
         </div>
 
         <p className="nav-label">WORKSPACE</p>
-<div className="sidebar-nav">
-        <button type="button" className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}>▦ &nbsp; Overview</button>
-        <button type="button" className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { setActiveSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
-        <button type="button" className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>✓ &nbsp; Security checkup</button>
-        <button type="button" className={`nav-item ${activeSection === "mobile-device-posture" ? "active" : ""}`} onClick={() => { setActiveSection("mobile-device-posture"); document.getElementById("mobile-device-posture")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>▣ &nbsp; Mobile posture</button>
-        <button type="button" className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { setActiveSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>↗ &nbsp; Incident response</button>
+        <nav className="sidebar-nav" aria-label="Workspace">
+          <button type="button" aria-current={activeSection === "overview" ? "page" : undefined} className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => navigateToSection("overview")}>▦ &nbsp; Overview</button>
+          <button type="button" aria-current={activeSection === "threat-analyzer" ? "page" : undefined} className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { navigateToSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
+          <button type="button" aria-current={activeSection === "security-checkup" ? "page" : undefined} className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { navigateToSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>✓ &nbsp; Security checkup</button>
+          <button type="button" aria-current={activeSection === "mobile-device-posture" ? "page" : undefined} className={`nav-item ${activeSection === "mobile-device-posture" ? "active" : ""}`} onClick={() => { navigateToSection("mobile-device-posture"); document.getElementById("mobile-device-posture")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>▣ &nbsp; Mobile posture</button>
+          <button type="button" aria-current={activeSection === "incident-response" ? "page" : undefined} className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { navigateToSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>↗ &nbsp; Incident response</button>
 
-        <button type="button" className={`nav-item ${activeSection === "firewall-checkup" ? "active" : ""}`} onClick={() => { setActiveSection("firewall-checkup"); document.getElementById("firewall-checkup")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>▣ &nbsp; Firewall checkup</button>
-        <button type="button" className={`nav-item ${activeSection === "cookie-privacy" ? "active" : ""}`} onClick={() => { setActiveSection("cookie-privacy"); document.getElementById("cookie-privacy")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>◉ &nbsp; Cookie privacy</button>
-        <button type="button" className={`nav-item ${activeSection === "password-checker" ? "active" : ""}`} onClick={() => { setActiveSection("password-checker"); document.getElementById("password-checker")?.scrollIntoView({ behavior: "smooth", block: "start" }) }}>🔐 &nbsp; Password checker</button></div>
+          <button type="button" aria-current={activeSection === "firewall-checkup" ? "page" : undefined} className={`nav-item ${activeSection === "firewall-checkup" ? "active" : ""}`} onClick={() => { navigateToSection("firewall-checkup"); document.getElementById("firewall-checkup")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>▣ &nbsp; Firewall checkup</button>
+          <button type="button" aria-current={activeSection === "cookie-privacy" ? "page" : undefined} className={`nav-item ${activeSection === "cookie-privacy" ? "active" : ""}`} onClick={() => { navigateToSection("cookie-privacy"); document.getElementById("cookie-privacy")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>◉ &nbsp; Cookie privacy</button>
+          <button type="button" aria-current={activeSection === "password-checker" ? "page" : undefined} className={`nav-item ${activeSection === "password-checker" ? "active" : ""}`} onClick={() => { navigateToSection("password-checker"); document.getElementById("password-checker")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>🔐 &nbsp; Password checker</button>
+        </nav>
 
         <div className="sidebar-note">
           <strong>Security starts here.</strong>
@@ -1382,12 +1392,13 @@ const securityGrade =
           }}
           onNavigate={(section) => {
             if (section === 'overview') {
-              window.scrollTo({ top: 0, behavior: 'smooth' })
+              navigateToSection('overview')
+              window.scrollTo({ top: 0, behavior: getNavigationScrollBehavior() })
               return
             }
-            setActiveSection(section)
+            navigateToSection(section)
             document.getElementById(section)?.scrollIntoView({
-              behavior: 'smooth',
+              behavior: getNavigationScrollBehavior(),
               block: 'start',
             })
           }}
