@@ -1389,7 +1389,6 @@ const securityGrade =
           <span>
             Workspace / {workspaceSections.find((section) => section.id === activeSection)?.label}
           </span>
-          <span className="status-pill">● Demo environment</span>
         </header>
 
         <section className="page-heading">
