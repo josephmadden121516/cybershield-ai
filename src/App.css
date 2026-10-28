@@ -272,6 +272,95 @@ h1 {
   line-height: 1.9;
 }
 
+.screenshot-analyzer {
+  margin-top: 20px;
+  padding: 16px;
+  background: #0b1927;
+  border: 1px solid #2a4054;
+  border-radius: 12px;
+}
+
+.screenshot-analyzer h3 {
+  margin: 0 0 7px;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.screenshot-analyzer > p {
+  margin: 0 0 14px;
+  color: #94aabd;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.screenshot-analyzer input[type="file"] {
+  display: block;
+  max-width: 100%;
+  color: #c7d6e4;
+  font-size: 12px;
+}
+
+.screenshot-analyzer .screenshot-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: #c7d6e4;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.screenshot-selected .secondary-button {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+}
+
+.screenshot-analyzer label.screenshot-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 15px 0 0;
+  color: #c7d6e4;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.screenshot-consent input {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+  accent-color: #31c7b4;
+}
+
+.screenshot-analyzer .screenshot-privacy {
+  margin: 12px 0 0;
+  padding-top: 11px;
+  border-top: 1px solid #26394b;
+  color: #8197aa;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.screenshot-analyzer .screenshot-error {
+  margin: 10px 0 0;
+  color: #ffb4a9;
+  font-size: 12px;
+}
+
+.screenshot-preview {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 280px;
+  margin-top: 12px;
+  object-fit: contain;
+  object-position: left top;
+  border: 1px solid #30475b;
+  border-radius: 8px;
+  background: #091725;
+}
+
 .disclaimer {
   margin: 20px 0 0;
   padding-top: 15px;

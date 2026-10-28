@@ -162,18 +162,81 @@ interface SecurityReport {
   created_at: string
 }
 
+const MAX_SCREENSHOT_FILE_SIZE = 12 * 1024 * 1024
+const MAX_SCREENSHOT_OUTPUT_SIZE = 3_000_000
+const MAX_SCREENSHOT_DIMENSION = 1600
+const DEFAULT_ANALYZER_MESSAGE =
+  'Your business email will be disabled today. Verify your account immediately using this link.'
+
+async function prepareScreenshotForAnalysis(file: File): Promise<string> {
+  const image = await createImageBitmap(file)
+
+  try {
+    if (!image.width || !image.height) {
+      throw new Error('The selected image has invalid dimensions.')
+    }
+
+    const scale = Math.min(
+      1,
+      MAX_SCREENSHOT_DIMENSION / image.width,
+      MAX_SCREENSHOT_DIMENSION / image.height
+    )
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.width * scale))
+    canvas.height = Math.max(1, Math.round(image.height * scale))
+
+    const context = canvas.getContext('2d')
+    if (!context) {
+      throw new Error('Could not prepare the screenshot for analysis.')
+    }
+
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.88)
+    )
+
+    if (!blob || blob.type !== 'image/jpeg') {
+      throw new Error('Could not convert the screenshot to JPEG.')
+    }
+    if (blob.size > MAX_SCREENSHOT_OUTPUT_SIZE) {
+      throw new Error('The screenshot is too large to upload after resizing.')
+    }
+
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result)
+        } else {
+          reject(new Error('Could not read the prepared screenshot.'))
+        }
+      }
+      reader.onerror = () =>
+        reject(new Error('Could not read the prepared screenshot.'))
+      reader.readAsDataURL(blob)
+    })
+  } finally {
+    image.close()
+  }
+}
+
 function App() {
   const [activeSection, setActiveSection] = useState('overview')
   const [assistantLanguage, setAssistantLanguage] = useState<'es' | 'en'>('es')
-  const [message, setMessage] = useState(
-    'Your business email will be disabled today. Verify your account immediately using this link.'
-  )
+  const [message, setMessage] = useState(DEFAULT_ANALYZER_MESSAGE)
   const [result, setResult] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisFindings, setAnalysisFindings] = useState<string[]>([])
   const [analysisRiskLevel, setAnalysisRiskLevel] =
     useState<'low' | 'review' | 'high' | null>(null)
   const [analysisSummary, setAnalysisSummary] = useState('')
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
+  const [screenshotConsent, setScreenshotConsent] = useState(false)
+  const [analysisInputType, setAnalysisInputType] = useState<'text' | 'image'>('text')
+  const [screenshotError, setScreenshotError] = useState('')
+  const screenshotInputRef = useRef<HTMLInputElement>(null)
+  const [screenshotPreviewUrl, setScreenshotPreviewUrl] = useState('')
+  const screenshotPreviewUrlRef = useRef<string | null>(null)
   const [activityEvents, setActivityEvents] = useState<SecurityActivityEvent[]>(
     () => loadSecurityActivityEvents('guest')
   )
@@ -182,6 +245,24 @@ function App() {
   const [reportsLoading, setReportsLoading] = useState(false)
   const [reportMessage, setReportMessage] = useState('')
   const [savingReport, setSavingReport] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (screenshotPreviewUrlRef.current) {
+        URL.revokeObjectURL(screenshotPreviewUrlRef.current)
+      }
+    }
+  }, [])
+
+  function updateScreenshotPreview(file: File | null) {
+    if (screenshotPreviewUrlRef.current) {
+      URL.revokeObjectURL(screenshotPreviewUrlRef.current)
+    }
+
+    const previewUrl = file ? URL.createObjectURL(file) : ''
+    screenshotPreviewUrlRef.current = previewUrl || null
+    setScreenshotPreviewUrl(previewUrl)
+  }
 
   const [user, setUser] = useState<User | null>(null)
   const [email, setEmail] = useState('')
@@ -800,14 +881,30 @@ if (suspiciousUrl) {
     
 
 
-  async function handleThreatAnalysis(textToAnalyze: string = message) {
+  async function handleThreatAnalysis(
+    textToAnalyze: string = message,
+    imageFile?: File
+  ) {
     const trimmedMessage = textToAnalyze.trim()
 
-    if (!trimmedMessage) {
-      setResult('Please enter a message to analyze.')
+    if (!trimmedMessage && !imageFile) {
+      setResult(
+        assistantLanguage === 'es'
+          ? 'Escribe un mensaje o selecciona una captura para analizar.'
+          : 'Enter a message or select a screenshot to analyze.'
+      )
       setAnalysisFindings([])
       setAnalysisRiskLevel(null)
       setAnalysisSummary('')
+      return
+    }
+
+    if (imageFile && !screenshotConsent) {
+      setScreenshotError(
+        assistantLanguage === 'es'
+          ? 'Confirma que entiendes que la captura se enviará para el análisis de IA.'
+          : 'Confirm that you understand the screenshot will be sent for AI analysis.'
+      )
       return
     }
 
@@ -817,15 +914,26 @@ if (suspiciousUrl) {
     setAnalysisRiskLevel(null)
     setAnalysisSummary('')
     setReportMessage('')
+    setAnalysisInputType(imageFile ? 'image' : 'text')
 
     try {
       if (!supabase || !isSupabaseConfigured) {
         throw new Error('Supabase is not configured.')
       }
 
+      const preparedImage = imageFile
+        ? await prepareScreenshotForAnalysis(imageFile)
+        : undefined
       const { data, error } = await supabase.functions.invoke(
         'analyze-threat',
-        { body: { message: trimmedMessage } }
+        {
+          body: {
+            message: trimmedMessage,
+            ...(preparedImage
+              ? { image: preparedImage, imageConsent: screenshotConsent }
+              : {}),
+          },
+        }
       )
 
       if (error) throw error
@@ -869,12 +977,16 @@ if (suspiciousUrl) {
       setResult(aiAnalysis)
       recordActivity(
         'analysis',
+        imageFile
+          ? assistantLanguage === 'es'
+            ? 'Análisis de captura completado'
+            : 'Screenshot analysis completed'
+          : assistantLanguage === 'es'
+            ? 'Análisis de mensaje completado'
+            : 'Message analysis completed',
         assistantLanguage === 'es'
-          ? 'Análisis de mensaje completado'
-          : 'Message analysis completed',
-        assistantLanguage === 'es'
-          ? `Evaluación de IA: ${riskLevel === 'high' ? 'riesgo alto' : riskLevel === 'review' ? 'requiere revisión' : 'riesgo bajo'}. No se guardó el texto del mensaje en este historial.`
-          : `AI assessment: ${riskLevel === 'high' ? 'high risk' : riskLevel === 'review' ? 'needs review' : 'low risk'}. Message text was not saved in this history.`
+          ? `Evaluación de IA: ${riskLevel === 'high' ? 'riesgo alto' : riskLevel === 'review' ? 'requiere revisión' : 'riesgo bajo'}. No se guardó el contenido enviado en este historial.`
+          : `AI assessment: ${riskLevel === 'high' ? 'high risk' : riskLevel === 'review' ? 'needs review' : 'low risk'}. Submitted content was not saved in this history.`
       )
       if (data?.alertStatus === 'created') {
         setReportMessage('High-severity alert saved to your account.')
@@ -883,7 +995,28 @@ if (suspiciousUrl) {
       } else if (data?.alertStatus === 'skipped' && riskLevel === 'high') {
         setReportMessage('Sign in to receive high-severity security alerts.')
       }
+      if (imageFile) {
+        setScreenshotFile(null)
+        updateScreenshotPreview(null)
+        setScreenshotConsent(false)
+        setScreenshotError('')
+        if (screenshotInputRef.current) {
+          screenshotInputRef.current.value = ''
+        }
+      }
     } catch (error) {
+      if (imageFile) {
+        console.error('AI screenshot analysis failed.', error)
+        setResult(
+          assistantLanguage === 'es'
+            ? 'No se pudo completar el análisis de la captura. No se usó un análisis local como sustituto; inténtalo de nuevo.'
+            : 'Screenshot analysis could not be completed. A local analysis was not used as a substitute; please try again.'
+        )
+        setAnalysisInputType('image')
+        setReportMessage('')
+        return
+      }
+
       console.error('AI threat analysis failed; using local analysis.', error)
       analyzeMessage(trimmedMessage)
       recordActivity(
@@ -918,7 +1051,11 @@ if (suspiciousUrl) {
         .from('security_reports')
         .insert({
           user_id: user.id,
-          message_text: message,
+          message_text: analysisInputType === 'image'
+            ? assistantLanguage === 'es'
+              ? '[Captura analizada; imagen no guardada]'
+              : '[Screenshot analyzed; image not stored]'
+            : message,
           risk_level: analysisRiskLevel,
           findings: analysisFindings,
           summary: analysisSummary,
@@ -1486,7 +1623,15 @@ const securityGrade =
             </div>
           </div>
 
-          <label htmlFor="message">Email or text message</label>
+          <label htmlFor="message">
+            {screenshotFile
+              ? assistantLanguage === 'es'
+                ? 'Contexto opcional del mensaje'
+                : 'Optional message context'
+              : assistantLanguage === 'es'
+                ? 'Correo o mensaje de texto'
+                : 'Email or text message'}
+          </label>
           <textarea
             id="message"
             value={message}
@@ -1499,16 +1644,161 @@ const securityGrade =
               setAnalysisSummary('')
               setReportMessage('')
             }}
-            placeholder="Paste a suspicious message here..."
+            placeholder={
+              assistantLanguage === 'es'
+                ? 'Pega aquí un mensaje sospechoso...'
+                : 'Paste a suspicious message here...'
+            }
           />
+
+          <div className="screenshot-analyzer">
+            <h3>
+              {assistantLanguage === 'es'
+                ? 'Analizar una captura de pantalla'
+                : 'Analyze a screenshot'}
+            </h3>
+            <p>
+              {assistantLanguage === 'es'
+                ? 'Opcional: selecciona una captura de un correo, mensaje o página sospechosa. No se carga hasta que marques tu consentimiento y ejecutes el análisis.'
+                : 'Optional: select a screenshot of a suspicious email, message, or webpage. It is not uploaded until you consent and run the analysis.'}
+            </p>
+
+            <label htmlFor="suspicious-screenshot">
+              {assistantLanguage === 'es' ? 'Captura (JPEG, PNG o WebP)' : 'Screenshot (JPEG, PNG, or WebP)'}
+            </label>
+            <input
+              ref={screenshotInputRef}
+              id="suspicious-screenshot"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={analysisLoading}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+                setScreenshotError('')
+                setScreenshotConsent(false)
+                setResult('')
+                setAnalysisFindings([])
+                setAnalysisRiskLevel(null)
+                setAnalysisSummary('')
+                setReportMessage('')
+
+                if (!file) {
+                  setScreenshotFile(null)
+                  updateScreenshotPreview(null)
+                  return
+                }
+
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                  setScreenshotFile(null)
+                  updateScreenshotPreview(null)
+                  event.currentTarget.value = ''
+                  setScreenshotError(
+                    assistantLanguage === 'es'
+                      ? 'Selecciona una imagen JPEG, PNG o WebP.'
+                      : 'Choose a JPEG, PNG, or WebP image.'
+                  )
+                  return
+                }
+
+                if (file.size > MAX_SCREENSHOT_FILE_SIZE) {
+                  setScreenshotFile(null)
+                  updateScreenshotPreview(null)
+                  event.currentTarget.value = ''
+                  setScreenshotError(
+                    assistantLanguage === 'es'
+                      ? 'La imagen debe tener un tamaño máximo de 12 MB.'
+                      : 'The image must be no larger than 12 MB.'
+                  )
+                  return
+                }
+
+                if (message === DEFAULT_ANALYZER_MESSAGE) {
+                  setMessage('')
+                }
+                setScreenshotFile(file)
+                updateScreenshotPreview(file)
+              }}
+            />
+
+            {screenshotFile && (
+              <div className="screenshot-selected">
+                <span>{screenshotFile.name}</span>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={analysisLoading}
+                  onClick={() => {
+                    setScreenshotFile(null)
+                    updateScreenshotPreview(null)
+                    setScreenshotConsent(false)
+                    setScreenshotError('')
+                    if (screenshotInputRef.current) {
+                      screenshotInputRef.current.value = ''
+                    }
+                  }}
+                >
+                  {assistantLanguage === 'es' ? 'Quitar captura' : 'Remove screenshot'}
+                </button>
+              </div>
+            )}
+
+            {screenshotPreviewUrl && (
+              <img
+                className="screenshot-preview"
+                src={screenshotPreviewUrl}
+                alt={
+                  assistantLanguage === 'es'
+                    ? 'Vista previa local de la captura seleccionada'
+                    : 'Local preview of the selected screenshot'
+                }
+              />
+            )}
+
+            <label className="screenshot-consent">
+              <input
+                type="checkbox"
+                checked={screenshotConsent}
+                disabled={!screenshotFile || analysisLoading}
+                onChange={(event) => {
+                  setScreenshotConsent(event.target.checked)
+                  setScreenshotError('')
+                }}
+              />
+              <span>
+                {assistantLanguage === 'es'
+                  ? 'Entiendo que al ejecutar el análisis, la captura y el texto opcional se enviarán a Supabase y a Meta; esto usa créditos de Meta Model API.'
+                  : 'I understand that running the analysis sends the screenshot and optional text to Supabase and Meta, and uses Meta Model API credits.'}
+              </span>
+            </label>
+
+            {screenshotError && (
+              <p className="screenshot-error" role="alert">{screenshotError}</p>
+            )}
+
+            <p className="screenshot-privacy">
+              {assistantLanguage === 'es'
+                ? 'El navegador reduce la imagen a un máximo de 1600 px y la convierte a JPEG antes de enviarla. La app no guarda la imagen. El procesamiento y la retención del proveedor dependen de sus políticas. Si guardas un informe, se almacenan la evaluación y los hallazgos; revísalos primero. Recorta o censura datos personales, códigos de verificación, datos financieros y notificaciones.'
+                : 'Your browser resizes the image to at most 1600 px and converts it to JPEG before sending. The app does not save the image. Provider processing and retention are subject to its policies. If you save a report, its assessment and findings are stored; review them first. Crop or redact personal data, verification codes, financial details, and notifications.'}
+            </p>
+          </div>
 
           <button
             type="button"
             className="primary-button"
-            onClick={() => handleThreatAnalysis()}
+            onClick={() => handleThreatAnalysis(message, screenshotFile ?? undefined)}
             disabled={analysisLoading}
           >
-            {analysisLoading ? 'Analyzing with AI...' : 'Analyze message →'}
+            {analysisLoading
+              ? assistantLanguage === 'es'
+                ? 'Analizando con IA...'
+                : 'Analyzing with AI...'
+              : screenshotFile
+                ? assistantLanguage === 'es'
+                  ? 'Analizar mensaje y captura →'
+                  : 'Analyze message and screenshot →'
+                : assistantLanguage === 'es'
+                  ? 'Analizar mensaje →'
+                  : 'Analyze message →'}
           </button>
 
           {result && (
@@ -1989,6 +2279,11 @@ const securityGrade =
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>Are my messages uploaded or saved?</summary>
             <p>When AI analysis is configured, submitted message text is sent to the connected Supabase Edge Function and AI provider for processing. The app does not save an analysis report unless you choose Save report while signed in. Avoid entering passwords, verification codes, financial details, or other sensitive information into the analyzer.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What happens to screenshots I analyze?</summary>
+            <p>A screenshot is sent to Supabase and Meta only after you select it, check the consent box, and run the analysis; each request uses Meta Model API credits. The browser resizes and converts it to JPEG first. ShieldPocket does not save the image itself. If you choose to save a report, the AI assessment and findings are saved, so review them for sensitive information first. The AI provider’s processing and retention are governed by its policies. Redact sensitive details before uploading.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
