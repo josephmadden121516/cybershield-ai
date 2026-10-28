@@ -153,6 +153,23 @@ function assessPasswordStrength(value: string) {
   }
 }
 
+const workspaceSections = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'threat-analyzer', label: 'Threat analyzer' },
+  { id: 'security-checkup', label: 'Security checkup' },
+  { id: 'mobile-device-posture', label: 'Mobile posture' },
+  { id: 'incident-response', label: 'Incident response' },
+  { id: 'firewall-checkup', label: 'Firewall checkup' },
+  { id: 'cookie-privacy', label: 'Cookie privacy' },
+  { id: 'password-checker', label: 'Password checker' },
+] as const
+
+type WorkspaceSectionId = (typeof workspaceSections)[number]['id']
+
+function isWorkspaceSectionId(value: string): value is WorkspaceSectionId {
+  return workspaceSections.some((section) => section.id === value)
+}
+
 interface SecurityReport {
   id: string
   message_text: string
@@ -227,7 +244,8 @@ async function prepareScreenshotForAnalysis(file: File): Promise<string> {
 }
 
 function App() {
-  const [activeSection, setActiveSection] = useState('overview')
+  const [activeSection, setActiveSection] =
+    useState<WorkspaceSectionId>('overview')
   const [assistantLanguage, setAssistantLanguage] = useState<'es' | 'en'>('es')
   const [message, setMessage] = useState(DEFAULT_ANALYZER_MESSAGE)
   const [result, setResult] = useState('')
@@ -654,11 +672,20 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
   const [showPasswordCheckInput, setShowPasswordCheckInput] = useState(false)
   const passwordAssessment = assessPasswordStrength(passwordCheckInput)
 
-  function navigateToSection(section: string) {
+  function navigateToSection(section: WorkspaceSectionId) {
     setActiveSection(section)
     if (section !== 'password-checker') {
       setPasswordCheckInput('')
       setShowPasswordCheckInput(false)
+    }
+
+    if (section === 'overview') {
+      window.scrollTo({ top: 0, behavior: getNavigationScrollBehavior() })
+    } else {
+      document.getElementById(section)?.scrollIntoView({
+        behavior: getNavigationScrollBehavior(),
+        block: 'start',
+      })
     }
   }
 
@@ -1325,17 +1352,31 @@ const securityGrade =
         </div>
 
         <p className="nav-label">WORKSPACE</p>
-        <nav className="sidebar-nav" aria-label="Workspace">
-          <button type="button" aria-current={activeSection === "overview" ? "page" : undefined} className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => navigateToSection("overview")}>▦ &nbsp; Overview</button>
-          <button type="button" aria-current={activeSection === "threat-analyzer" ? "page" : undefined} className={`nav-item ${activeSection === "threat-analyzer" ? "active" : ""}`} onClick={() => { navigateToSection("threat-analyzer"); document.getElementById("threat-analyzer")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>⌕ &nbsp; Threat analyzer</button>
-          <button type="button" aria-current={activeSection === "security-checkup" ? "page" : undefined} className={`nav-item ${activeSection === "security-checkup" ? "active" : ""}`} onClick={() => { navigateToSection("security-checkup"); document.getElementById("security-checkup")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>✓ &nbsp; Security checkup</button>
-          <button type="button" aria-current={activeSection === "mobile-device-posture" ? "page" : undefined} className={`nav-item ${activeSection === "mobile-device-posture" ? "active" : ""}`} onClick={() => { navigateToSection("mobile-device-posture"); document.getElementById("mobile-device-posture")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>▣ &nbsp; Mobile posture</button>
-          <button type="button" aria-current={activeSection === "incident-response" ? "page" : undefined} className={`nav-item ${activeSection === "incident-response" ? "active" : ""}`} onClick={() => { navigateToSection("incident-response"); document.getElementById("incident-response")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>↗ &nbsp; Incident response</button>
-
-          <button type="button" aria-current={activeSection === "firewall-checkup" ? "page" : undefined} className={`nav-item ${activeSection === "firewall-checkup" ? "active" : ""}`} onClick={() => { navigateToSection("firewall-checkup"); document.getElementById("firewall-checkup")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>▣ &nbsp; Firewall checkup</button>
-          <button type="button" aria-current={activeSection === "cookie-privacy" ? "page" : undefined} className={`nav-item ${activeSection === "cookie-privacy" ? "active" : ""}`} onClick={() => { navigateToSection("cookie-privacy"); document.getElementById("cookie-privacy")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>◉ &nbsp; Cookie privacy</button>
-          <button type="button" aria-current={activeSection === "password-checker" ? "page" : undefined} className={`nav-item ${activeSection === "password-checker" ? "active" : ""}`} onClick={() => { navigateToSection("password-checker"); document.getElementById("password-checker")?.scrollIntoView({ behavior: getNavigationScrollBehavior(), block: "start" }) }}>🔐 &nbsp; Password checker</button>
-        </nav>
+        <div className="workspace-navigation">
+          <label className="nav-label" htmlFor="workspace-section">
+            WORKSPACE
+          </label>
+          <div className="workspace-select-wrap">
+            <select
+              id="workspace-section"
+              className="workspace-select"
+              aria-label="Go to workspace section"
+              value={activeSection}
+              onChange={(event) => {
+                if (isWorkspaceSectionId(event.target.value)) {
+                  navigateToSection(event.target.value)
+                }
+              }}
+            >
+              {workspaceSections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.label}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden="true">⌄</span>
+          </div>
+        </div>
 
         <div className="sidebar-note">
           <strong>Security starts here.</strong>
@@ -1345,7 +1386,9 @@ const securityGrade =
 
       <main className="main-content">
         <header className="topbar">
-          <span>Workspace / Overview</span>
+          <span>
+            Workspace / {workspaceSections.find((section) => section.id === activeSection)?.label}
+          </span>
           <span className="status-pill">● Demo environment</span>
         </header>
 
@@ -1391,16 +1434,9 @@ const securityGrade =
             return 'started'
           }}
           onNavigate={(section) => {
-            if (section === 'overview') {
-              navigateToSection('overview')
-              window.scrollTo({ top: 0, behavior: getNavigationScrollBehavior() })
-              return
+            if (isWorkspaceSectionId(section)) {
+              navigateToSection(section)
             }
-            navigateToSection(section)
-            document.getElementById(section)?.scrollIntoView({
-              behavior: getNavigationScrollBehavior(),
-              block: 'start',
-            })
           }}
           onSetMessage={setMessage}
           onAnalyzeMessage={(text) => handleThreatAnalysis(text)}
