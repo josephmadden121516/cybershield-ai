@@ -9,6 +9,7 @@ import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
 import { PhishingResponseGuide } from './components/PhishingResponseGuide'
+import { IncidentResponseKit } from './components/IncidentResponseKit'
 import {
   SecurityActivityTimeline,
   type SecurityActivityEvent,
@@ -1936,7 +1937,9 @@ const securityGrade =
           </p>
         </section>
 
-         <section id="incident-response" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
+        <IncidentResponseKit language={assistantLanguage} />
+
+         <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
