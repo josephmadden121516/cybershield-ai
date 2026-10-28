@@ -9,6 +9,8 @@ import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
 import { PhishingResponseGuide } from './components/PhishingResponseGuide'
+import { ComplianceFrameworkMapper } from './components/ComplianceFrameworkMapper'
+import { CveTriageAssistant } from './components/CveTriageAssistant'
 import { IncidentResponseKit } from './components/IncidentResponseKit'
 import { ExecutiveBoardBriefing } from './components/ExecutiveBoardBriefing'
 import type { IncidentResponseProgress } from './components/incidentResponseProgress'
@@ -158,6 +160,7 @@ function assessPasswordStrength(value: string) {
 const workspaceSections = [
   { id: 'overview', label: 'Overview' },
   { id: 'threat-analyzer', label: 'Threat analyzer' },
+  { id: 'cve-triage', label: 'CVE triage' },
   { id: 'security-checkup', label: 'Security checkup' },
   { id: 'mobile-device-posture', label: 'Mobile posture' },
   { id: 'incident-response', label: 'Incident response' },
@@ -1876,6 +1879,13 @@ const securityGrade =
                 />
               )}
 
+              {analysisRiskLevel && (
+                <ComplianceFrameworkMapper
+                  language={assistantLanguage}
+                  assessment={result}
+                />
+              )}
+
               {user ? (
                 <button
                   type="button"
@@ -1903,6 +1913,7 @@ const securityGrade =
           </p>
         </section>
 
+        <CveTriageAssistant language={assistantLanguage} />
 
         <section className="content-card saved-reports-card">
           <div className="card-heading">

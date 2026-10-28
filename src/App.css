@@ -298,6 +298,129 @@ button {
   line-height: 1.9;
 }
 
+.compliance-mapper {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #0b1927;
+}
+
+.compliance-toggle,
+.compliance-mapper-options fieldset label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.compliance-toggle {
+  margin: 0 !important;
+}
+
+.compliance-toggle input,
+.compliance-mapper-options fieldset input {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+  accent-color: #31c7b4;
+}
+
+.compliance-mapper-options > p,
+.cve-triage-disclaimer {
+  margin: 13px 0;
+  color: #94aabd;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.compliance-mapper-options fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #30475b;
+  border-radius: 9px;
+}
+
+.compliance-mapper-options fieldset legend {
+  padding: 0 6px;
+  color: #c7d6e4;
+  font-size: 11px;
+}
+
+.compliance-mapper-options fieldset label {
+  margin: 0;
+}
+
+.compliance-mapper-options .secondary-button {
+  margin-top: 14px;
+}
+
+.compliance-disclaimer {
+  margin: 12px 0 0 !important;
+}
+
+.compliance-error,
+.cve-triage-error {
+  color: #ffb4a9 !important;
+}
+
+.advisor-result {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #34564f;
+  border-radius: 10px;
+  background: #102522;
+}
+
+.advisor-result h3,
+.advisor-result h4 {
+  margin: 0 0 10px;
+  color: #8de5d7;
+  font-size: 13px;
+}
+
+.advisor-result pre {
+  margin: 0;
+  color: #d3e2e8;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cve-triage form {
+  display: grid;
+}
+
+.cve-triage-input-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: #8197aa;
+  font-size: 11px;
+}
+
+.cve-triage-input-meta .primary-button {
+  margin-top: 0;
+}
+
+.cve-triage-disclaimer {
+  margin-bottom: 0;
+}
+
+.cve-triage-error {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
 .screenshot-analyzer {
   margin-top: 20px;
   padding: 16px;

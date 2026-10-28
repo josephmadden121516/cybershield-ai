@@ -29,6 +29,8 @@ Supabase Auth, Database, and Edge Functions
 - **Messages are not silently saved.** Message text sent for AI analysis is processed by the configured Supabase function and Meta. An analysis report is stored only when a signed-in user chooses to save it; a saved report contains the submitted text, assessment, and findings. Review it for sensitive information first.
 - **Activity history stays on the device.** It records security actions, not message content, and is stored locally in the browser/device.
 - **Board briefings are generated locally.** They summarize recent device activity, self-reported checklist and incident-playbook progress, and up to 20 saved threat reports. No AI request is made; chat transcripts and unsaved message contents are excluded. Review a briefing before downloading, printing, or sharing it.
+- **Compliance mapping is user-triggered.** The selected threat-assessment summary is sent to Muse Spark only when the user requests NIST CSF 2.0 and/or ISO/IEC 27001:2022 guidance. Results are preliminary, may be inaccurate, and are not an audit, certification, or finding of noncompliance. Verify references against the official standards.
+- **Vulnerability triage is user-triggered and defensive.** User-pasted CVE or scanner text is sent to Muse Spark only after submitting the form. It does not run scans or test exploits; do not include credentials or personal data, and verify versions and fixes with vendor advisories.
 - **The checklist may sync to Supabase for signed-in accounts.** Account authentication and explicitly saved reports use Supabase services.
 - **AI assessments are guidance, not proof.** The analyzer does not visit links, inspect email headers, scan attachments, or query live threat feeds. A low-risk response does not establish that content is safe.
 
@@ -41,6 +43,8 @@ Supabase Auth, Database, and Edge Functions
 - Offline incident-response playbooks
 - Account-based passkey authentication and saved security reports
 - Local executive board briefings with Markdown download and print-to-PDF
+- Opt-in NIST CSF 2.0 / ISO 27001 preliminary mapping for threat assessments
+- Defensive CVE and vulnerability prioritization with patch checklists
 - Capacitor iOS app using the web app interface
 
 ## Development
