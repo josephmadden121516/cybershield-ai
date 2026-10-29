@@ -238,7 +238,7 @@ function formatIncidentProgress(
       : `**${scenario.scenarioTitle}:** ${scenario.completedSteps.length} of ${scenario.totalSteps} steps marked complete`
     return [
       `- ${progress}`,
-      ...scenario.completedSteps.map((step) => `  - ${markdownEscape(step)}`),
+      ...scenario.completedSteps.map((step: string) => `  - ${markdownEscape(step)}`),
     ]
   })
 }

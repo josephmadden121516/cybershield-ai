@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client for frontend invocation
-const supabaseUrl = 'https://iblqbjhejmjpahbninzw.supabase.co';
-const supabaseKey = 'your_supabase_anon_key_here'; // Replace with your public anon key
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 type Language = 'en' | 'es';
 
@@ -39,6 +34,11 @@ export default function ExecutiveBriefing() {
 
   const handleGeneratePatch = async () => {
     setLoading(true);
+    if (!isSupabaseConfigured || !supabase) {
+      alert('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local.');
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke('generate-remediation', {
         body: {
@@ -50,8 +50,9 @@ export default function ExecutiveBriefing() {
 
       if (error) throw error;
       setRemediationResult(data);
-    } catch (err: any) {
-      alert(`Error generating remediation: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`Error generating remediation: ${message}`);
     } finally {
       setLoading(false);
     }
