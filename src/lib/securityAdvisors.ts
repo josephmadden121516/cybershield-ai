@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from './supabase'
+import { assertWithinDailyBudget, trackUsage } from './usageMeter'
 
 export type SecurityAdvisorTask = 'compliance' | 'cve'
 export type ComplianceFramework =
@@ -26,6 +27,7 @@ export async function requestSecurityAdvisor(
   if (task === 'compliance' && (!frameworks || frameworks.length === 0)) {
     throw new Error('Select at least one framework.')
   }
+  assertWithinDailyBudget()
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('AI guidance is not configured. Check the Supabase environment settings.')
   }
@@ -45,6 +47,7 @@ export async function requestSecurityAdvisor(
   if (!analysis) {
     throw new Error('The AI service returned no guidance.')
   }
+  trackUsage(data)
   return analysis
 }
 
@@ -126,6 +129,7 @@ export async function requestAttackTreeSimulation(
       `Assets must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
     )
   }
+  assertWithinDailyBudget()
   if (!isSupabaseConfigured || !supabase) {
     throw new Error(
       'AI guidance is not configured. Check the Supabase environment settings.'
@@ -145,6 +149,7 @@ export async function requestAttackTreeSimulation(
   if (!isAttackTreeSimulation(data?.simulation)) {
     throw new Error('The AI service returned an unreadable simulation.')
   }
+  trackUsage(data)
   return data.simulation
 }
 
@@ -200,6 +205,7 @@ export async function requestPhishDrill(
       `Audience must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
     )
   }
+  assertWithinDailyBudget()
   if (!isSupabaseConfigured || !supabase) {
     throw new Error(
       'AI guidance is not configured. Check the Supabase environment settings.'
@@ -219,5 +225,158 @@ export async function requestPhishDrill(
   if (!isPhishDrill(data?.drill)) {
     throw new Error('The AI service returned an unreadable drill.')
   }
+  trackUsage(data)
   return data.drill
+}
+
+export async function requestDailyDigest(
+  sourceText: string,
+  language: 'en' | 'es'
+): Promise<string> {
+  const trimmed = sourceText.trim()
+  if (!trimmed) {
+    throw new Error('There is no activity to summarize yet.')
+  }
+  if (trimmed.length > MAX_ADVISOR_INPUT_LENGTH) {
+    throw new Error(
+      `Input must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
+    )
+  }
+  assertWithinDailyBudget()
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'digest',
+      message: trimmed,
+      language,
+    },
+  })
+
+  if (error) throw error
+  const digest =
+    typeof data?.analysis === 'string' ? data.analysis.trim() : ''
+  if (!digest) {
+    throw new Error('The AI service returned no digest.')
+  }
+  trackUsage(data)
+  return digest
+}
+
+export async function requestPlainExplanation(
+  finding: string,
+  language: 'en' | 'es'
+): Promise<string> {
+  const trimmed = finding.trim()
+  if (!trimmed) {
+    throw new Error('There is no finding to explain yet.')
+  }
+  if (trimmed.length > MAX_ADVISOR_INPUT_LENGTH) {
+    throw new Error(
+      `Input must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
+    )
+  }
+  assertWithinDailyBudget()
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'explain',
+      message: trimmed,
+      language,
+    },
+  })
+
+  if (error) throw error
+  const explanation =
+    typeof data?.analysis === 'string' ? data.analysis.trim() : ''
+  if (!explanation) {
+    throw new Error('The AI service returned no explanation.')
+  }
+  trackUsage(data)
+  return explanation
+}
+
+export async function requestNarrativePolish(
+  briefing: string,
+  language: 'en' | 'es'
+): Promise<string> {
+  const trimmed = briefing.trim()
+  if (!trimmed) {
+    throw new Error('Generate a briefing before polishing it.')
+  }
+  if (trimmed.length > MAX_ADVISOR_INPUT_LENGTH) {
+    throw new Error(
+      `Input must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
+    )
+  }
+  assertWithinDailyBudget()
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'polish',
+      message: trimmed,
+      language,
+    },
+  })
+
+  if (error) throw error
+  const polished =
+    typeof data?.analysis === 'string' ? data.analysis.trim() : ''
+  if (!polished) {
+    throw new Error('The AI service returned no polished briefing.')
+  }
+  trackUsage(data)
+  return polished
+}
+
+export async function requestIncidentTimeline(
+  notes: string,
+  language: 'en' | 'es'
+): Promise<string> {
+  const trimmed = notes.trim()
+  if (!trimmed) {
+    throw new Error('Paste incident notes to reconstruct.')
+  }
+  if (trimmed.length > MAX_ADVISOR_INPUT_LENGTH) {
+    throw new Error(
+      `Input must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
+    )
+  }
+  assertWithinDailyBudget()
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'timeline',
+      message: trimmed,
+      language,
+    },
+  })
+
+  if (error) throw error
+  const timeline =
+    typeof data?.analysis === 'string' ? data.analysis.trim() : ''
+  if (!timeline) {
+    throw new Error('The AI service returned no timeline.')
+  }
+  trackUsage(data)
+  return timeline
 }

@@ -22,7 +22,12 @@ import { PatchGenerator } from './components/PatchGenerator'
 import { AttackTreeSimulator } from './components/AttackTreeSimulator'
 import { SyntheticAuditLab } from './components/SyntheticAuditLab'
 import { PhishDrillGenerator } from './components/PhishDrillGenerator'
+import { IncidentTimelineReconstructor } from './components/IncidentTimelineReconstructor'
+import { UsageMeter } from './components/UsageMeter'
+import { ThreatDigest } from './components/ThreatDigest'
 import { getSampleActivityEvents, getSampleReports } from './lib/demoData'
+import { assertWithinDailyBudget, trackUsage } from './lib/usageMeter'
+import { requestPlainExplanation } from './lib/securityAdvisors'
 import { ExecutiveBoardBriefing } from './components/ExecutiveBoardBriefing'
 import type { IncidentResponseProgress } from './components/incidentResponseProgress'
 import {
@@ -219,7 +224,9 @@ function assessPasswordStrength(value: string) {
 
 const workspaceSections = [
   { id: 'overview', label: 'Overview' },
+  { id: 'api-usage', label: 'API usage' },
   { id: 'threat-analyzer', label: 'Threat analyzer' },
+  { id: 'threat-digest', label: 'Daily digest' },
   { id: 'cve-triage', label: 'CVE triage' },
   { id: 'patch-generator', label: 'Patch generator' },
   { id: 'attack-simulator', label: 'Attack simulator' },
@@ -318,6 +325,10 @@ function App() {
   const [assistantLanguage, setAssistantLanguage] = useState<'es' | 'en'>('es')
   const [message, setMessage] = useState(DEFAULT_ANALYZER_MESSAGE)
   const [result, setResult] = useState('')
+  const [explanation, setExplanation] = useState('')
+  const [explainedFor, setExplainedFor] = useState('')
+  const [explanationLoading, setExplanationLoading] = useState(false)
+  const [explanationError, setExplanationError] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisFindings, setAnalysisFindings] = useState<string[]>([])
   const [analysisRiskLevel, setAnalysisRiskLevel] =
@@ -809,6 +820,7 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
     )
 
     try {
+      assertWithinDailyBudget()
       const { data, error } = await supabase.functions.invoke('sophia-chat', {
         body: { message: prompt, history: [] },
       })
@@ -819,6 +831,7 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
       if (!reply) {
         throw new Error('The AI function returned no plan.')
       }
+      trackUsage(data)
 
       setSecurityPlan(reply)
       setSecurityPlanKey(currentSecurityPlanKey)
@@ -1062,6 +1075,7 @@ if (suspiciousUrl) {
       if (!supabase || !isSupabaseConfigured) {
         throw new Error('Supabase is not configured.')
       }
+      assertWithinDailyBudget()
 
       const preparedImage = imageFile
         ? await prepareScreenshotForAnalysis(imageFile)
@@ -1086,6 +1100,7 @@ if (suspiciousUrl) {
       if (!aiAnalysis) {
         throw new Error('The AI function returned no analysis.')
       }
+      trackUsage(data)
 
       const riskMatch = aiAnalysis.match(
         /\bRisk\s*:\s*(High|Medium|Moderate|Review|Low)\b/i
@@ -1219,6 +1234,28 @@ if (suspiciousUrl) {
       setReportMessage('An unexpected error occurred while saving the report.')
     } finally {
       setSavingReport(false)
+    }
+  }
+
+  async function explainResult() {
+    if (explanationLoading || !result.trim()) return
+    setExplanationLoading(true)
+    setExplanationError('')
+    try {
+      const text = await requestPlainExplanation(result, assistantLanguage)
+      setExplanation(text)
+      setExplainedFor(result)
+    } catch (error) {
+      console.error('Could not explain analysis result.', error)
+      setExplanationError(
+        error instanceof Error
+          ? error.message
+          : assistantLanguage === 'es'
+            ? 'No se pudo explicar este resultado.'
+            : 'Could not explain this finding.'
+      )
+    } finally {
+      setExplanationLoading(false)
     }
   }
 
@@ -1749,6 +1786,8 @@ const securityGrade =
           </article>
         </section>
 
+        <UsageMeter language={assistantLanguage} />
+
         <SecurityActivityTimeline
           language={assistantLanguage}
           events={activityEvents}
@@ -1765,6 +1804,12 @@ const securityGrade =
             title: task.title,
             completed: completedTasks.includes(index),
           }))}
+        />
+
+        <ThreatDigest
+          language={assistantLanguage}
+          reports={reports}
+          activity={activityEvents}
         />
 
         <section id="threat-analyzer" className="content-card">
@@ -2011,6 +2056,46 @@ const securityGrade =
             <div className="analysis-result" role="status">
               <h3>Analysis result</h3>
               <p>{result}</p>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void explainResult()}
+                disabled={explanationLoading}
+                style={{ marginTop: '12px' }}
+              >
+                {explanationLoading
+                  ? assistantLanguage === 'es'
+                    ? 'Explicando...'
+                    : 'Explaining...'
+                  : assistantLanguage === 'es'
+                    ? 'Explicar en simple'
+                    : 'Explain simply'}
+              </button>
+              {explanationError && (
+                <p role="alert" style={{ color: '#ffd38a' }}>
+                  {explanationError}
+                </p>
+              )}
+              {explanation && explainedFor === result && (
+                <div
+                  role="status"
+                  style={{
+                    marginTop: '12px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: '#091725',
+                    border: '1px solid #30475b',
+                  }}
+                >
+                  <h4 style={{ margin: '0 0 6px' }}>
+                    {assistantLanguage === 'es'
+                      ? 'Explicación simple'
+                      : 'Plain explanation'}
+                  </h4>
+                  <p style={{ margin: 0 }}>{explanation}</p>
+                </div>
+              )}
 
               {analysisRiskLevel && (
                 <PhishingResponseGuide
@@ -2483,6 +2568,8 @@ const securityGrade =
 
         <PhishDrillGenerator language={assistantLanguage} />
 
+        <IncidentTimelineReconstructor language={assistantLanguage} />
+
          <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
 
@@ -2579,6 +2666,36 @@ const securityGrade =
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>What is Phish drill generator?</summary>
             <p>Pick a lure type and describe your team to generate a fictional training phish with planted red flags, teaching notes, and a debrief. Lures use fictitious people and domains and are for training only: never use them to deceive real victims.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is the usage meter?</summary>
+            <p>ShieldPocket records the token usage each AI call reports and shows estimated spend against the project credit balance on the dashboard. A daily spending cap blocks new AI calls once reached, so the credits are protected. Adjust the cap and balance in the usage meter card.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is the daily threat digest?</summary>
+            <p>One AI call summarizes your saved reports and recent activity into highlights, top risks, and today's focus. It only uses material already in the app and says so when there is too little activity to assess.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What does "Explain simply" do?</summary>
+            <p>Next to threat-analysis and vulnerability-triage results, "Explain simply" makes one short AI call that restates the finding in plain language: what could go wrong, why it matters, and the most important actions. Explanations never promise anything is completely safe.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is the board briefing AI polish?</summary>
+            <p>The executive board briefing is compiled on your device without an AI call. The optional "Polish with AI" button makes one call that rewrites it as a clearer executive narrative, keeping every fact, number, and caveat exactly as stated.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>How do patch refinement follow-ups work?</summary>
+            <p>After a patch proposal, ask for extra hardening such as "harden this further for a multi-tenant cluster." Each round keeps all prior fixes and returns a complete updated proposal with revised risk, rationale, validation, and rollback. Proposals stay review-only: nothing is applied or deployed.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is the incident timeline reconstructor?</summary>
+            <p>Paste scattered incident notes in any order and get a chronological timeline with a likely sequence and gaps to investigate. Entries with uncertain order are marked UNCERTAIN, and the result is a draft for human review: verify every entry against the original sources.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>

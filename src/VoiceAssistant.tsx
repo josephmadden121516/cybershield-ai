@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { assertWithinDailyBudget, trackUsage } from './lib/usageMeter'
 import { authenticateWithBiometrics } from './biometricAuth'
 
 import './VoiceAssistant.css'
@@ -539,6 +540,7 @@ export default function VoiceAssistant({
     setStatus(spanish ? 'Consultando a Sophia…' : 'Asking Sophia…')
 
     try {
+      assertWithinDailyBudget()
       const { data, error } = await supabase.functions.invoke('sophia-chat', {
         body: {
           message,
@@ -557,6 +559,7 @@ export default function VoiceAssistant({
       if (typeof data?.reply !== 'string' || !data.reply.trim()) {
         throw new Error('Sophia returned an empty response.')
       }
+      trackUsage(data)
 
       const reply = data.reply.trim()
       setChatMessages((current) => [...current, { role: 'assistant', content: reply }])

@@ -1,0 +1,55 @@
+.incident-timeline textarea {
+  width: 100%;
+  min-height: 140px;
+  box-sizing: border-box;
+}
+
+.incident-timeline-input-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.incident-timeline-input-meta .primary-button {
+  margin-top: 0;
+}
+
+.incident-timeline-disclaimer {
+  margin: 14px 0 0;
+  color: #94aabd;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.incident-timeline-error {
+  margin: 14px 0 0;
+  color: #ffd38a;
+  font-size: 12px;
+}
+
+.incident-timeline-result {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #091725;
+}
+
+.incident-timeline-result h3 {
+  margin: 0 0 8px;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.incident-timeline-result pre {
+  margin: 0;
+  color: #c7d6e4;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

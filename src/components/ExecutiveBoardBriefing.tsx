@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { SecurityActivityEvent } from './SecurityActivityTimeline'
 import type { IncidentResponseProgress } from './incidentResponseProgress'
+import { requestNarrativePolish } from '../lib/securityAdvisors'
 import './ExecutiveBoardBriefing.css'
 
 interface SavedThreatReport {
@@ -45,6 +46,10 @@ export function ExecutiveBoardBriefing({
   const [briefing, setBriefing] = useState('')
   const [generatedAt, setGeneratedAt] = useState('')
   const [incidentStorageWarning, setIncidentStorageWarning] = useState(false)
+  const [polished, setPolished] = useState('')
+  const [polishedFor, setPolishedFor] = useState('')
+  const [polishing, setPolishing] = useState(false)
+  const [polishError, setPolishError] = useState('')
 
   function generateBriefing() {
     const now = new Date()
@@ -140,6 +145,28 @@ export function ExecutiveBoardBriefing({
     setIncidentStorageWarning(incidentProgress.storageError)
   }
 
+  async function polishBriefing() {
+    if (polishing || !briefing.trim()) return
+    setPolishing(true)
+    setPolishError('')
+    try {
+      const text = await requestNarrativePolish(briefing, language)
+      setPolished(text)
+      setPolishedFor(briefing)
+    } catch (error) {
+      console.error('Could not polish the briefing.', error)
+      setPolishError(
+        error instanceof Error
+          ? error.message
+          : isEs
+            ? 'No se pudo pulir el informe.'
+            : 'Could not polish the briefing.'
+      )
+    } finally {
+      setPolishing(false)
+    }
+  }
+
   function downloadBriefing() {
     const blob = new Blob([briefing], { type: 'text/markdown;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -193,14 +220,28 @@ export function ExecutiveBoardBriefing({
             <button type="button" className="secondary-button" onClick={printBriefing}>
               {isEs ? 'Imprimir / Guardar PDF' : 'Print / Save PDF'}
             </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void polishBriefing()}
+              disabled={polishing}
+            >
+              {polishing
+                ? isEs
+                  ? 'Puliendo...'
+                  : 'Polishing...'
+                : isEs
+                  ? 'Pulir con IA (~1¢)'
+                  : 'Polish with AI (~1¢)'}
+            </button>
           </>
         )}
       </div>
 
       <p className="executive-board-privacy">
         {isEs
-          ? 'El informe se compila en este dispositivo; no usa una llamada de IA. Descargarlo o imprimirlo puede guardar o compartir información de seguridad.'
-          : 'The report is compiled on this device without an AI call. Downloading or printing it may save or share security information.'}
+          ? 'El informe se compila en este dispositivo sin llamada de IA; el pulido opcional usa una llamada (~1¢). Descargarlo o imprimirlo puede guardar o compartir información de seguridad.'
+          : 'The report is compiled on this device without an AI call; the optional polish uses one call (~1¢). Downloading or printing it may save or share security information.'}
       </p>
 
       {incidentStorageWarning && (
@@ -215,6 +256,17 @@ export function ExecutiveBoardBriefing({
         <div className="executive-board-output">
           <h3>{isEs ? 'Vista previa del informe' : 'Briefing preview'}</h3>
           <pre>{briefing}</pre>
+        </div>
+      )}
+
+      {polishError && (
+        <p className="executive-board-warning" role="alert">{polishError}</p>
+      )}
+
+      {polished && polishedFor === briefing && (
+        <div className="executive-board-output">
+          <h3>{isEs ? 'Versión pulida por IA' : 'AI-polished version'}</h3>
+          <pre>{polished}</pre>
         </div>
       )}
     </section>

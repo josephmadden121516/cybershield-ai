@@ -1,5 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import {
+  MAX_REFINEMENT_LENGTH,
+  refineRemediationPatch,
   requestRemediationPatch,
   type RemediationFileKind,
   type RemediationPatch,
@@ -37,9 +39,21 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
   const [snippet, setSnippet] = useState('')
   const [patch, setPatch] = useState<RemediationPatch | null>(null)
   const [originalSnippet, setOriginalSnippet] = useState('')
+  const [submittedRequest, setSubmittedRequest] = useState<{
+    vulnId: string
+    severity: (typeof severities)[number]
+    vulnType: string
+    snippet: string
+    fileKind: RemediationFileKind
+    codeLanguage: string
+  } | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [followup, setFollowup] = useState('')
+  const [refining, setRefining] = useState(false)
+  const [refineError, setRefineError] = useState('')
+  const [refineRounds, setRefineRounds] = useState(0)
 
   const diffLines = useMemo(
     () => (patch ? computeLineDiff(originalSnippet, patch.patchedCode) : []),
@@ -52,6 +66,10 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
 
     setLoading(true)
     setPatch(null)
+    setSubmittedRequest(null)
+    setRefineRounds(0)
+    setFollowup('')
+    setRefineError('')
     setErrorMessage('')
     setCopied(false)
     try {
@@ -65,6 +83,14 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
         language
       )
       setOriginalSnippet(snippet.trim())
+      setSubmittedRequest({
+        vulnId,
+        severity,
+        vulnType,
+        snippet: snippet.trim(),
+        fileKind,
+        codeLanguage,
+      })
       setPatch(result)
     } catch (error) {
       console.error('Could not generate remediation patch.', error)
@@ -77,6 +103,44 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function refinePatch() {
+    if (refining || !patch || !submittedRequest || !followup.trim()) return
+    setRefining(true)
+    setRefineError('')
+    try {
+      const result = await refineRemediationPatch(
+        {
+          vulnerability: {
+            id: submittedRequest.vulnId,
+            severity: submittedRequest.severity,
+            type: submittedRequest.vulnType,
+          },
+          codeSnippet: submittedRequest.snippet,
+          fileKind: submittedRequest.fileKind,
+          codeLanguage: submittedRequest.codeLanguage,
+          priorPatch: patch,
+          followup,
+        },
+        language
+      )
+      setPatch(result)
+      setFollowup('')
+      setCopied(false)
+      setRefineRounds((rounds) => rounds + 1)
+    } catch (error) {
+      console.error('Could not refine the patch.', error)
+      setRefineError(
+        error instanceof Error
+          ? error.message
+          : isEs
+            ? 'No se pudo refinar el parche.'
+            : 'Could not refine the patch.'
+      )
+    } finally {
+      setRefining(false)
     }
   }
 
@@ -345,6 +409,65 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
                 ? 'Copiar código corregido'
                 : 'Copy patched code'}
           </button>
+
+          <h3>
+            {isEs ? 'Refinar este parche (~1¢ por ronda)' : 'Refine this patch (~1¢ per round)'}
+          </h3>
+          <label htmlFor="patch-generator-followup">
+            {isEs
+              ? 'Pide endurecimiento adicional (por ejemplo, "endurécelo más para un clúster multiinquilino").'
+              : 'Ask for extra hardening (for example, "harden this further for a multi-tenant cluster").'}
+          </label>
+          <textarea
+            id="patch-generator-followup"
+            value={followup}
+            maxLength={MAX_REFINEMENT_LENGTH}
+            disabled={refining}
+            spellCheck={false}
+            autoComplete="off"
+            rows={2}
+            onChange={(event) => {
+              setFollowup(event.target.value)
+              setRefineError('')
+            }}
+            placeholder={
+              isEs
+                ? 'Describe el endurecimiento adicional. No incluyas secretos.'
+                : 'Describe the extra hardening. Do not include secrets.'
+            }
+          />
+          <div className="patch-generator-input-meta">
+            <span>
+              {followup.length} / {MAX_REFINEMENT_LENGTH}
+              {refineRounds > 0 && (
+                <>
+                  {' · '}
+                  {isEs
+                    ? `${refineRounds} ronda(s) de refinamiento`
+                    : `${refineRounds} refinement round(s)`}
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void refinePatch()}
+              disabled={refining || !followup.trim()}
+            >
+              {refining
+                ? isEs
+                  ? 'Refinando...'
+                  : 'Refining...'
+                : isEs
+                  ? 'Refinar parche'
+                  : 'Refine patch'}
+            </button>
+          </div>
+          {refineError && (
+            <p className="patch-generator-error" role="alert">
+              {refineError}
+            </p>
+          )}
         </div>
       )}
     </section>

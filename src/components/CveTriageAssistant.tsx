@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { requestSecurityAdvisor } from '../lib/securityAdvisors'
+import {
+  requestPlainExplanation,
+  requestSecurityAdvisor,
+} from '../lib/securityAdvisors'
 
 const MAX_TRIAGE_INPUT_LENGTH = 12000
 
@@ -13,6 +16,10 @@ export function CveTriageAssistant({ language }: CveTriageAssistantProps) {
   const [result, setResult] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [explanation, setExplanation] = useState('')
+  const [explainedFor, setExplainedFor] = useState('')
+  const [explanationLoading, setExplanationLoading] = useState(false)
+  const [explanationError, setExplanationError] = useState('')
 
   async function submitTriage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,6 +42,28 @@ export function CveTriageAssistant({ language }: CveTriageAssistantProps) {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function explainGuidance() {
+    if (explanationLoading || !result.trim()) return
+    setExplanationLoading(true)
+    setExplanationError('')
+    try {
+      const text = await requestPlainExplanation(result, language)
+      setExplanation(text)
+      setExplainedFor(result)
+    } catch (error) {
+      console.error('Could not explain triage guidance.', error)
+      setExplanationError(
+        error instanceof Error
+          ? error.message
+          : isEs
+            ? 'No se pudo explicar este resultado.'
+            : 'Could not explain this finding.'
+      )
+    } finally {
+      setExplanationLoading(false)
     }
   }
 
@@ -105,6 +134,30 @@ export function CveTriageAssistant({ language }: CveTriageAssistantProps) {
         <div className="advisor-result" role="status" aria-live="polite">
           <h3>{isEs ? 'Lista defensiva de prioridades' : 'Defensive triage checklist'}</h3>
           <pre>{result}</pre>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void explainGuidance()}
+            disabled={explanationLoading}
+            style={{ marginTop: '12px' }}
+          >
+            {explanationLoading
+              ? isEs
+                ? 'Explicando...'
+                : 'Explaining...'
+              : isEs
+                ? 'Explicar en simple'
+                : 'Explain simply'}
+          </button>
+          {explanationError && (
+            <p className="cve-triage-error" role="alert">{explanationError}</p>
+          )}
+          {explanation && explainedFor === result && (
+            <div style={{ marginTop: '12px' }}>
+              <h4>{isEs ? 'Explicación simple' : 'Plain explanation'}</h4>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{explanation}</p>
+            </div>
+          )}
         </div>
       )}
     </section>

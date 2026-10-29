@@ -1,0 +1,53 @@
+.usage-meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.usage-meter-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #091725;
+  border: 1px solid #30475b;
+}
+
+.usage-meter-grid span {
+  font-size: 11px;
+  color: #94aabd;
+}
+
+.usage-meter-grid strong {
+  font-size: 20px;
+  color: #eaf2fa;
+}
+
+.usage-meter-grid label {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.usage-meter-grid input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #8797a5);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.usage-meter-warning {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #ffd38a;
+  background: rgba(255, 211, 138, 0.12);
+  border: 1px solid rgba(255, 211, 138, 0.4);
+  font-size: 12px;
+}

@@ -1,0 +1,27 @@
+.threat-digest-error {
+  margin: 14px 0 0;
+  color: #ffd38a;
+  font-size: 12px;
+}
+
+.threat-digest-result {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #091725;
+}
+
+.threat-digest-result h3 {
+  margin: 0 0 8px;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.threat-digest-result p {
+  margin: 0;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}

@@ -1,4 +1,5 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { extractReplyText } from "../_shared/replyText.ts";
+import { toTokenUsage } from "../_shared/usage.ts";
 
 const META_API_URL = "https://api.meta.ai/v1/chat/completions";
 const MODEL = "muse-spark-1.3";
@@ -156,9 +157,9 @@ Answer the user's current question directly. Do not invent ShieldPocket features
     }
 
     const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content;
+    const reply = extractReplyText(data?.choices?.[0]);
 
-    if (typeof reply !== "string" || reply.trim().length === 0) {
+    if (!reply) {
       console.error("Sophia received an empty response from the model.");
       return jsonResponse(
         { error: "Sophia returned an empty response. Please try again." },
@@ -169,6 +170,7 @@ Answer the user's current question directly. Do not invent ShieldPocket features
     return jsonResponse({
       reply: reply.trim(),
       model: MODEL,
+      usage: toTokenUsage(data),
     });
   } catch (error) {
     console.error(
