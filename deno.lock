@@ -8,6 +8,12 @@
       "integrity": "48665d1a737d487cce6874bc97bba70a5aeffa7053aca3f60df93c6fab8963b4"
     }
   },
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.118.0"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.118.0": "56fce2ec273698af8a739c03a005c4b2160e163e5d2c0ede05de7e9bd47e28b8"
+  },
   "workspace": {
     "packageJson": {
       "dependencies": [
@@ -17,6 +23,7 @@
         "npm:@capacitor/ios@^8.5.3",
         "npm:@eslint/js@^10.0.1",
         "npm:@supabase/supabase-js@^2.118.0",
+        "npm:@tailwindcss/vite@^4.3.3",
         "npm:@types/node@^24.19.2",
         "npm:@types/react-dom@^19.3.0",
         "npm:@types/react@^19.3.0",
@@ -27,6 +34,7 @@
         "npm:globals@^17.13.0",
         "npm:react-dom@^19.3.1",
         "npm:react@^19.3.1",
+        "npm:tailwindcss@^4.3.3",
         "npm:typescript-eslint@^8.71.2",
         "npm:typescript@~6.0.3",
         "npm:vite@^8.3.4"
