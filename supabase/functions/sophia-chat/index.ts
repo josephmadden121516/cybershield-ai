@@ -1,4 +1,4 @@
-
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const META_API_URL = "https://api.meta.ai/v1/chat/completions";
 const MODEL = "muse-spark-1.3";
@@ -7,7 +7,7 @@ const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_MESSAGE_LENGTH = 4000;
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+ "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -121,7 +121,7 @@ CAPABILITIES
 Answer the user's current question directly. Do not invent ShieldPocket features or claim access to the user's saved reports, checklist, device, or accounts.
 `.trim();
 
- try {
+  try {
     const response = await fetch(META_API_URL, {
       method: "POST",
       headers: {

@@ -1,0 +1,78 @@
+.voice-assistant {
+  border-color: rgba(45, 190, 160, 0.35);
+}
+
+.voice-assistant-intro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid rgba(45, 190, 160, 0.25);
+  border-radius: 12px;
+  background: rgba(45, 190, 160, 0.07);
+}
+
+.voice-assistant-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 12px;
+  background: rgba(45, 190, 160, 0.14);
+  font-size: 22px;
+}
+
+.voice-assistant-intro strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.voice-assistant-intro p {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.voice-assistant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.voice-assistant-status {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(100, 116, 139, 0.1);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.voice-command-examples {
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.voice-command-examples ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.voice-assistant .disclaimer {
+  margin-top: 18px;
+}
+
+@media (max-width: 620px) {
+  .voice-assistant-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .voice-assistant-actions button {
+    width: 100%;
+  }
+}

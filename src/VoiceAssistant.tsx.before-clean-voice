@@ -1,0 +1,415 @@
+import { useEffect, useRef, useState } from 'react'
+import './VoiceAssistant.css'
+
+interface VoiceAssistantProps {
+  onNavigate: (section: string) => void
+  onAnalyzeMessage: (text: string) => void
+  onSetMessage: (text: string) => void
+}
+
+interface SpeechResult {
+  0: { transcript: string }
+}
+
+interface SpeechEventLike {
+  results: ArrayLike<SpeechResult>
+}
+
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((event: SpeechEventLike) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+export default function VoiceAssistant({
+  onNavigate,
+  onAnalyzeMessage,
+  onSetMessage,
+}: VoiceAssistantProps) {
+  const [language, setLanguage] = useState<'es' | 'en'>('es')
+  const [command, setCommand] = useState('')
+  const [status, setStatus] = useState(
+    'Type a command or use your microphone.'
+  )
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop()
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
+  function speak(text: string) {
+    if (!('speechSynthesis' in window)) {
+      setStatus('Speech playback is not supported in this browser.')
+      return
+    }
+
+    const synth = window.speechSynthesis
+    synth.cancel()
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = language === 'es' ? 'es-MX' : 'en-US'
+    utterance.rate = 0.96
+    utterance.pitch = 1.04
+
+    const chooseVoice = () => {
+      const voices = synth.getVoices()
+
+      if (language === 'es') {
+        return (
+          voices.find(
+            (voice) =>
+              /^es[-_]MX$/i.test(voice.lang) &&
+              /paulina/i.test(voice.name)
+          ) ??
+          voices.find((voice) => /^es[-_]MX$/i.test(voice.lang)) ??
+          voices.find((voice) => /^es([-_]|$)/i.test(voice.lang))
+        )
+      }
+
+      return (
+        voices.find(
+          (voice) =>
+            /^en[-_](US|CA|AU|GB)$/i.test(voice.lang) &&
+            /samantha|ava|victoria|allison|susan|zira|karen|tessa/i.test(voice.name)
+        ) ??
+        voices.find((voice) => /^en[-_]US$/i.test(voice.lang)) ??
+        voices.find((voice) => /^en([-_]|$)/i.test(voice.lang))
+      )
+    }
+
+    const voice = chooseVoice()
+    if (voice) utterance.voice = voice
+
+    utterance.onstart = () =>
+      setStatus(language === 'es' ? 'Sophia está hablando.' : 'Sophia is speaking.')
+    utterance.onend = () =>
+      setStatus(language === 'es' ? 'Respuesta de voz finalizada.' : 'Voice response finished.')
+    utterance.onerror = (event) => {
+      setStatus(
+        language === 'es'
+          ? `Error de voz: ${event.error}. Intenta probar la voz de Sophia de nuevo.`
+          : `Speech playback error: ${event.error}. Try clicking Test Sophia's Voice again.`
+      )
+    }
+
+    synth.speak(utterance)
+
+    if (synth.paused) synth.resume()
+  }
+  function processCommand(rawCommand: string) {
+    const text = rawCommand.trim()
+    const normalized = text
+      .toLocaleLowerCase(language === 'es' ? 'es-MX' : 'en-US')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+    const spanish = language === 'es'
+
+    if (!text) {
+      setStatus(spanish ? 'Escribe o di un comando primero.' : 'Please type or say a command first.')
+      return
+    }
+
+    setCommand(text)
+
+    if (/^(stop speaking|be quiet|silence|deja de hablar|silencio|detener voz|deten la voz)$/i.test(normalized)) {
+      window.speechSynthesis?.cancel()
+      setStatus(spanish ? 'Respuesta de voz detenida.' : 'Voice response stopped.')
+      return
+    }
+
+    if (
+      normalized.includes('open threat analyzer') ||
+      normalized.includes('go to threat analyzer') ||
+      normalized === 'threat analyzer' ||
+      normalized.includes('abrir analizador de amenazas') ||
+      normalized.includes('abre el analizador de amenazas') ||
+      normalized.includes('ir al analizador de amenazas') ||
+      normalized === 'analizador de amenazas'
+    ) {
+      onNavigate('threat-analyzer')
+      setStatus(spanish ? 'Abrí el analizador de amenazas.' : 'Opened the Threat Analyzer.')
+      speak(spanish ? 'Abriendo el analizador de amenazas.' : 'Opening the Threat Analyzer.')
+      return
+    }
+
+    if (
+      normalized.includes('open security checkup') ||
+      normalized.includes('security checklist') ||
+      normalized.includes('go to security checkup') ||
+      normalized.includes('abrir revision de seguridad') ||
+      normalized.includes('abre la revision de seguridad') ||
+      normalized.includes('lista de seguridad') ||
+      normalized.includes('revision de seguridad')
+    ) {
+      onNavigate('security-checkup')
+      setStatus(spanish ? 'Abrí la revisión de seguridad.' : 'Opened the Security Checkup.')
+      speak(spanish ? 'Abriendo la revisión de seguridad.' : 'Opening the Security Checkup.')
+      return
+    }
+
+    if (
+      normalized.includes('open incident response') ||
+      normalized.includes('incident response') ||
+      normalized.includes('abrir respuesta a incidentes') ||
+      normalized.includes('abre respuesta a incidentes') ||
+      normalized.includes('respuesta a incidentes')
+    ) {
+      onNavigate('incident-response')
+      setStatus(spanish ? 'Abrí la respuesta a incidentes.' : 'Opened Incident Response.')
+      speak(spanish ? 'Abriendo la respuesta a incidentes.' : 'Opening Incident Response.')
+      return
+    }
+
+    if (
+      normalized === 'overview' ||
+      normalized.includes('open overview') ||
+      normalized.includes('go to overview') ||
+      normalized === 'inicio' ||
+      normalized.includes('abrir inicio') ||
+      normalized.includes('ir al inicio') ||
+      normalized === 'resumen'
+    ) {
+      onNavigate('overview')
+      setStatus(spanish ? 'Abrí el resumen.' : 'Opened Overview.')
+      speak(spanish ? 'Abriendo el resumen.' : 'Opening Overview.')
+      return
+    }
+
+    const analysisMatch = text.match(
+      /^(?:(?:please|por favor)\s+)?(?:analyze|analyse|check|inspect|analiza|analizar|revisa|revisar|verifica|verificar)\s+(?:(?:this|este|esta)\s+)?(?:email|e-mail|message|text|correo|mensaje|texto)\s*[:\-]\s*([\s\S]+)$/i
+    )
+
+    if (analysisMatch?.[1]?.trim()) {
+      const message = analysisMatch[1].trim()
+      onSetMessage(message)
+      onNavigate('threat-analyzer')
+      onAnalyzeMessage(message)
+      setStatus(
+        spanish
+          ? 'Revisé el mensaje con reglas locales de patrones de alerta.'
+          : 'Checked the message using local warning-pattern rules.'
+      )
+      speak(
+        spanish
+          ? 'Revisé el mensaje con reglas locales de patrones de alerta. Revisa los resultados en pantalla. Esto no es un análisis completo con inteligencia artificial.'
+          : 'I checked the message using local warning-pattern rules. Please review the findings on screen. This is not a full AI scan.'
+      )
+      return
+    }
+
+    if (
+      /^(?:please\s+|por favor\s+)?(?:analyze|analyse|check|inspect|analiza|analizar|revisa|revisar|verifica|verificar)(?:\s+(?:(?:this|este|esta)\s+)?(?:email|e-mail|message|text|correo|mensaje|texto))?$/i.test(normalized)
+    ) {
+      onNavigate('threat-analyzer')
+      setStatus(
+        spanish
+          ? 'Pega el correo en el analizador de amenazas o di: analiza correo, seguido de dos puntos y el mensaje.'
+          : 'Paste the email into the Threat Analyzer, or say “analyze email:” followed by the message.'
+      )
+      speak(
+        spanish
+          ? 'Abriendo el analizador de amenazas. Pega el mensaje allí o di analiza correo, seguido del mensaje.'
+          : 'Opening the Threat Analyzer. Paste the message there, or say analyze email followed by the message.'
+      )
+      return
+    }
+
+    setStatus(
+      spanish
+        ? 'No reconocí ese comando. Prueba: abre el analizador de amenazas, abre la revisión de seguridad, abre la respuesta a incidentes o analiza correo: seguido del mensaje.'
+        : 'Command not recognized. Try “open threat analyzer”, “open security checkup”, “open incident response”, or “analyze email:” followed by the message.'
+    )
+    speak(
+      spanish
+        ? 'No reconocí ese comando. Puedes abrir el analizador de amenazas, la revisión de seguridad o la respuesta a incidentes.'
+        : 'I did not recognize that command. You can open the Threat Analyzer, open Security Checkup, or open Incident Response.'
+    )
+  }
+
+  function startListening() {
+    const speechWindow = window as Window & {
+      SpeechRecognition?: SpeechRecognitionConstructor
+      webkitSpeechRecognition?: SpeechRecognitionConstructor
+    }
+
+    const Recognition =
+      speechWindow.SpeechRecognition ??
+      speechWindow.webkitSpeechRecognition
+
+    if (!Recognition) {
+      setStatus(
+        'Speech recognition is not supported in this browser. Type your command below instead.'
+      )
+      return
+    }
+
+    try {
+      recognitionRef.current?.stop()
+
+      const recognition = new Recognition()
+      recognition.lang = language === 'es' ? 'es-MX' : 'en-US'
+      recognition.continuous = false
+      recognition.interimResults = false
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript
+        if (transcript) processCommand(transcript)
+      }
+
+      recognition.onerror = () => {
+        setStatus(
+          'Microphone recognition failed. Check browser microphone permission or type a command.'
+        )
+        setListening(false)
+      }
+
+      recognition.onend = () => {
+        setListening(false)
+      }
+
+      recognitionRef.current = recognition
+      setListening(true)
+      setStatus('Listening… speak a ShieldPocket command.')
+      recognition.start()
+    } catch {
+      setListening(false)
+      setStatus(
+        'Could not start the microphone. You can type a command instead.'
+      )
+    }
+  }
+
+  return (
+    <section className="content-card voice-assistant">
+      <div className="card-heading">
+        <div>
+          <h2>{language === "es" ? "Sophia — Asistente de seguridad" : "Sophia — Security Assistant"}</h2>
+          <p>
+            {language === "es"
+              ? "Usa tu voz o escribe para navegar las herramientas de seguridad y revisar un mensaje."
+              : "Use voice or text to navigate security tools and check a message."}
+          </p>
+        </div>
+        <span className="demo-tag">VOICE BETA</span>
+      </div>
+
+      <div className="voice-language-picker">
+        <label htmlFor="sophia-language">{language === "es" ? "Idioma de Sophia" : "Sophia's language"}</label>
+        <select id="sophia-language" value={language} onChange={(event) => setLanguage(event.target.value as "es" | "en")}>
+          <option value="es">Español (México)</option>
+          <option value="en">English (US)</option>
+        </select>
+        <p className="voice-language-help">{language === "es" ? "La voz y el micrófono usarán español." : "Voice and microphone will use English."}</p>
+      </div>
+
+      <div className="voice-assistant-intro">
+        <span className="voice-assistant-icon" aria-hidden="true">
+          {listening ? '🎙️' : '🔊'}
+        </span>
+        <div>
+          <strong>{listening ? (language === "es" ? "Escuchando…" : "Listening now") : (language === "es" ? "Lista para ayudarte" : "Ready to help")}</strong>
+          <p>
+            {language === "es" ? "El acceso al micrófono depende de tu navegador y de los permisos." : "Microphone access depends on your browser and permission"}
+            {language === "es" ? "" : "settings."}
+          </p>
+        </div>
+      </div>
+
+      <label htmlFor="voice-command">{language === "es" ? "Di o escribe un comando" : "Say or type a command"}</label>
+      <textarea
+        id="voice-command"
+        value={command}
+        onChange={(event) => setCommand(event.target.value)}
+        placeholder={
+          language === 'es'
+            ? 'Prueba: abre el analizador de amenazas\nO: analiza correo: Tu cuenta será desactivada hoy. Verifica tu contraseña.'
+            : 'Try: open threat analyzer\nOr: analyze email: Your account will be disabled today. Verify your password.'
+        }
+        rows={3}
+      />
+
+      <div className="voice-assistant-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() =>
+            speak(
+              language === 'es'
+                ? 'Hola, soy Sophia, tu asistente de seguridad de ShieldPocket. Estoy lista para ayudarte a revisar mensajes sospechosos y tu lista de seguridad.'
+                : 'Hello, I am Sophia, your ShieldPocket security assistant. I am ready to help you check suspicious messages and review your security checklist.'
+            )
+          }
+        >
+          {language === 'es' ? '🔊 Probar la voz de Sophia' : "🔊 Test Sophia's Voice"}
+        </button>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={startListening}
+          disabled={listening}
+        >
+          {listening ? (language === 'es' ? 'Escuchando…' : 'Listening…') : (language === 'es' ? '🎙 Comenzar a hablar' : '🎙 Start talking')}
+        </button>
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => processCommand(command)}
+        >
+          {language === 'es' ? 'Ejecutar comando' : 'Run command'}
+        </button>
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            recognitionRef.current?.stop()
+            setListening(false)
+            window.speechSynthesis?.cancel()
+            setStatus(language === 'es' ? 'Respuesta de voz detenida.' : 'Voice response stopped.')
+          }}
+        >
+          {language === 'es' ? 'Detener' : 'Stop'}
+        </button>
+      </div>
+
+      <p className="voice-assistant-status" role="status" aria-live="polite">
+        {status}
+      </p>
+
+      <div className="voice-command-examples">
+        <strong>Commands to try</strong>
+        <ul>
+          <li>“Open threat analyzer”</li>
+          <li>“Open security checkup”</li>
+          <li>“Open incident response”</li>
+          <li>
+            “Analyze email:” followed by the message you want checked
+          </li>
+        </ul>
+      </div>
+
+      <p className="disclaimer">
+        Voice beta: commands only control ShieldPocket’s on-screen
+        tools. It cannot access your inbox, sign in to other websites,
+        or bypass authentication. Message checks use local pattern
+        matching, not a connected AI model.
+      </p>
+    </section>
+  )
+}

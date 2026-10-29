@@ -1,0 +1,654 @@
+.brand-logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  font-size: 16px;
+  letter-spacing: -0.4px;
+}
+
+.brand small {
+  color: #91a7ba;
+  margin-top: 5px;
+  font-size: 10px;
+}
+
+.nav-label {
+  margin: 0 0 12px 10px;
+  color: #718ba2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+}
+
+.nav-item {
+  padding: 13px 12px;
+  margin-bottom: 5px;
+  color: #a7bbcd;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.nav-item.active {
+  color: #79e6d5;
+  background: #123c43;
+  border: 1px solid #205458;
+}
+
+.sidebar-note {
+  margin-top: auto;
+  padding: 17px;
+  background: #102b3b;
+  border: 1px solid #254657;
+  border-radius: 14px;
+}
+
+.sidebar-note strong {
+  font-size: 12px;
+}
+
+.sidebar-note p {
+  margin-bottom: 0;
+  color: #a2b8c7;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar {
+  min-height: 72px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 38px;
+  border-bottom: 1px solid #1c3043;
+  color: #91a7ba;
+  font-size: 12px;
+}
+
+.status-pill {
+  padding: 8px 12px;
+  border: 1px solid #23564f;
+  border-radius: 999px;
+  background: #102c2c;
+  color: #7ee1ce;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.page-heading {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 38px 38px 24px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #5eead4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(28px, 3.3vw, 43px);
+  letter-spacing: -1.7px;
+  line-height: 1.13;
+}
+
+.intro {
+  max-width: 650px;
+  margin: 15px 0 0;
+  color: #9cb0c3;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.metrics {
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 auto;
+  padding: 0 38px 24px;
+}
+
+.metric-card {
+  min-width: 0;
+  padding: 20px;
+  background: #101f30;
+  border: 1px solid #23384b;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px #0000000a;
+}
+
+.metric-card > span {
+  display: block;
+  color: #9bb0c2;
+  font-size: 12px;
+}
+
+.metric-card strong {
+  display: block;
+  margin: 17px 0 8px;
+  color: #72e2d0;
+  font-size: 23px;
+  letter-spacing: -0.6px;
+}
+
+.metric-card small {
+  color: #8299ad;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.content-card {
+  max-width: 1124px;
+  margin: 0 auto 28px;
+  padding: 25px;
+  background: #101f30;
+  border: 1px solid #23384b;
+  border-radius: 17px;
+}
+
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.card-heading h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+
+.card-heading p {
+  margin: 0;
+  color: #94aabd;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.demo-tag {
+  padding: 7px 9px;
+  color: #83dcd0;
+  background: #123735;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+}
+
+.content-card label {
+  display: block;
+  margin-bottom: 10px;
+  color: #c7d6e4;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.content-card textarea {
+  display: block;
+  width: 100%;
+  min-height: 155px;
+  resize: vertical;
+  padding: 15px;
+  color: #eaf2fa;
+  background: #091725;
+  border: 1px solid #30475b;
+  border-radius: 11px;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.8;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.content-card textarea::placeholder {
+  color: #6f8599;
+}
+
+.content-card textarea:focus {
+  border-color: #31c7b4;
+  box-shadow: 0 0 0 3px #31c7b41c;
+}
+
+.primary-button {
+  margin-top: 16px;
+  padding: 12px 17px;
+  color: #052c29;
+  background: linear-gradient(135deg, #65ead6, #25b9a8);
+  border: 0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.primary-button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.analysis-result {
+  margin-top: 22px;
+  padding: 19px;
+  background: #302719;
+  border: 1px solid #70552c;
+  border-radius: 12px;
+  white-space: pre-line;
+}
+
+.analysis-result h3 {
+  margin: 0 0 10px;
+  color: #ffd38a;
+  font-size: 14px;
+}
+
+.analysis-result p {
+  margin: 0;
+  color: #ead7b6;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.disclaimer {
+  margin: 20px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid #26394b;
+  color: #8197aa;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+footer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 38px 28px;
+  color: #71879a;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+@media (max-width: 850px) {
+  .sidebar {
+    width: 210px;
+    padding: 24px 13px;
+  }
+
+  .topbar {
+    padding: 16px 24px;
+  }
+
+  .page-heading {
+    padding: 30px 24px 22px;
+  }
+
+  .metrics {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .content-card {
+    margin-right: 24px;
+    margin-left: 24px;
+    padding: 21px;
+  }
+
+  footer {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: 17px 16px;
+    border-right: 0;
+    border-bottom: 1px solid #1c3043;
+  }
+
+  .brand {
+    margin-bottom: 17px;
+  }
+
+  .nav-label,
+  .sidebar-note {
+    display: none;
+  }
+
+  .sidebar > div:nth-child(2) {
+    overflow-x: auto;
+  }
+
+  .sidebar > div:nth-child(2) .nav-item {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .topbar {
+    min-height: 60px;
+    padding: 13px 16px;
+  }
+
+  .page-heading {
+    padding: 28px 17px 20px;
+  }
+
+  h1 {
+    font-size: 31px;
+    letter-spacing: -1.1px;
+  }
+
+  .intro {
+    font-size: 13px;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0 17px 20px;
+  }
+
+  .metric-card {
+    padding: 16px;
+  }
+
+  .metric-card strong {
+    margin: 10px 0 5px;
+    font-size: 21px;
+  }
+
+  .content-card {
+    margin: 0 17px 22px;
+    padding: 18px;
+  }
+
+  .card-heading {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .content-card textarea {
+    min-height: 170px;
+  }
+
+  .primary-button {
+    width: 100%;
+  }
+
+  footer {
+    padding: 0 17px 25px;
+  }
+}
+/* CyberShield AI checklist polish */
+.security-card {
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 14px;
+  padding: 18px;
+  margin-top: 18px;
+}
+
+.checklist-progress {
+  margin: 14px 0 18px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(45, 212, 191, 0.15);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: #2dd4bf;
+  transition: width 0.25s ease;
+}
+
+.security-task-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.security-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  transition: border-color 0.2s ease;
+}
+
+.security-task:hover {
+  border-color: #2dd4bf;
+}
+
+.security-task input[type="checkbox"] {
+  accent-color: #0b766e;
+  cursor: pointer;
+}
+
+.checklist-note {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+
+/* Native Face ID lock screen */
+.face-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #06121b;
+  color: #e7f0f7;
+  text-align: center;
+}
+.face-lock-card {
+  width: min(100%, 390px);
+  padding: 30px 24px;
+  border: 1px solid #254657;
+  border-radius: 20px;
+  background: #102333;
+  box-shadow: 0 24px 80px #0008;
+}
+.face-lock-symbol {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 18px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #5eead4, #14b8a6);
+  color: #062b28;
+  font-size: 34px;
+  font-weight: 900;
+}
+.face-lock-eyebrow {
+  color: #79e6d5;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.face-lock-card h1 {
+  margin: 12px 0;
+  font-size: 27px;
+}
+.face-lock-card > p {
+  color: #b5c9d6;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.face-lock-card .face-lock-message {
+  color: #ffd18b;
+}
+.face-lock-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* Keep the native lock screen usable on short screens and with the keyboard open */
+.face-lock-overlay {
+  overflow-y: auto;
+  align-items: start;
+  -webkit-overflow-scrolling: touch;
+}
+
+.face-lock-card {
+  margin: auto;
+}
+
+@media (max-height: 700px) {
+  .face-lock-overlay {
+    padding: 12px;
+  }
+
+  .face-lock-card {
+    padding: 20px 18px;
+  }
+.face-lock-symbol {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    font-size: 28px;
+  }
+
+  .face-lock-card h1 {
+    font-size: 23px;
+  }
+}
+
+
+
+/* Password checker */
+.password-privacy-note {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 10px;
+  background: rgba(45, 212, 191, 0.07);
+  color: #b9d7df;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.password-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.password-check-input {
+  min-width: 0;
+  flex: 1;
+  padding: 13px;
+  border: 1px solid #30475b;
+  border-radius: 10px;
+  background: #091725;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.password-check-input:focus {
+  outline: 2px solid #31c7b4;
+  outline-offset: 1px;
+}
+
+.password-toggle-button,
+.secondary-button {
+  padding: 10px 14px;
+  border: 1px solid #365368;
+  border-radius: 9px;
+  background: #142b3d;
+  color: #d7e6f2;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.password-meter {
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 11px;
+}
+
+.password-meter-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #d7e6f2;
+  font-size: 13px;
+}
+
+.password-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 11px;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.password-feedback h3 {
+  margin-top: 0;
+  color: #eaf2fa;
+  font-size: 13px;
+}
+
+.password-feedback ul {
+  padding-left: 20px;
+}
+
+.password-checker .secondary-button {
+  margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .password-input-row {
+    flex-direction: column;
+  }
+}
