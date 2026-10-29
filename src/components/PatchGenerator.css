@@ -1,0 +1,128 @@
+.patch-generator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.patch-generator-grid label {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.patch-generator-grid input,
+.patch-generator-grid select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #8797a5);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.patch-generator textarea {
+  width: 100%;
+  min-height: 140px;
+  box-sizing: border-box;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.patch-generator-input-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.patch-generator-input-meta .primary-button {
+  margin-top: 0;
+}
+
+.patch-generator-disclaimer {
+  margin: 14px 0 0;
+  color: #94aabd;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.patch-generator-error {
+  margin: 14px 0 0;
+  color: #ffd38a;
+  font-size: 12px;
+}
+
+.patch-generator-result {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #091725;
+}
+
+.patch-generator-result h3 {
+  margin: 18px 0 8px;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.patch-generator-result h3:first-child {
+  margin-top: 0;
+}
+
+.patch-generator-result p {
+  margin: 0;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.patch-generator-diff {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #060f1c;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.patch-generator-diff span {
+  display: block;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+.diff-same {
+  color: #8fa3b5;
+}
+
+.diff-add {
+  color: #7ce3a8;
+  background: rgba(46, 160, 67, 0.15);
+}
+
+.diff-remove {
+  color: #ffa198;
+  background: rgba(248, 81, 73, 0.12);
+}
+
+.patch-generator-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: #c7d6e4;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.patch-generator-result .secondary-button {
+  margin-top: 16px;
+}

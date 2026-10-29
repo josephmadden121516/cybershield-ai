@@ -1,0 +1,130 @@
+.audit-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.audit-lab-grid label {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.audit-lab-grid input,
+.audit-lab-grid select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #8797a5);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.audit-lab-grid .primary-button {
+  margin-top: 0;
+}
+
+.audit-lab-disclaimer {
+  margin: 14px 0 0;
+  color: #94aabd;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.audit-lab-result {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #30475b;
+  border-radius: 12px;
+  background: #091725;
+}
+
+.audit-lab-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.audit-lab-result-head h3 {
+  margin: 0;
+  color: #eaf2fa;
+  font-size: 14px;
+}
+
+.audit-lab-result-head .secondary-button {
+  margin-top: 0;
+}
+
+.audit-lab-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-lab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #c7d6e4;
+}
+
+.audit-lab-table th {
+  text-align: left;
+  padding: 8px;
+  color: #eaf2fa;
+  border-bottom: 1px solid #30475b;
+  white-space: nowrap;
+}
+
+.audit-lab-table td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(48, 71, 91, 0.5);
+  vertical-align: top;
+}
+
+.audit-lab-table code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.audit-severity {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.audit-severity-info {
+  background: rgba(143, 163, 181, 0.15);
+  color: #8fa3b5;
+}
+
+.audit-severity-low {
+  background: rgba(46, 160, 67, 0.15);
+  color: #7ce3a8;
+}
+
+.audit-severity-medium {
+  background: rgba(255, 211, 138, 0.15);
+  color: #ffd38a;
+}
+
+.audit-severity-high {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ffa198;
+}
+
+.audit-severity-critical {
+  background: rgba(248, 81, 73, 0.3);
+  color: #ffb4ae;
+}

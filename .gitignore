@@ -41,3 +41,5 @@ backups/
 # Local source-code backup copies
 src/*backup*
 src/*.backup
+.vercel
+.env*

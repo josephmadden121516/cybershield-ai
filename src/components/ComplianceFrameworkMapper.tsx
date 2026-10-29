@@ -10,6 +10,9 @@ interface ComplianceFrameworkMapperProps {
 const frameworkOptions: Array<{ value: ComplianceFramework; label: string }> = [
   { value: 'NIST CSF 2.0', label: 'NIST CSF 2.0' },
   { value: 'ISO/IEC 27001:2022', label: 'ISO/IEC 27001:2022' },
+  { value: 'GDPR', label: 'GDPR' },
+  { value: 'PCI DSS', label: 'PCI DSS' },
+  { value: 'EU AI Act', label: 'EU AI Act' },
 ]
 
 export function ComplianceFrameworkMapper({

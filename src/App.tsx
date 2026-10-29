@@ -18,6 +18,9 @@ import { PhishingResponseGuide } from './components/PhishingResponseGuide'
 import { ComplianceFrameworkMapper } from './components/ComplianceFrameworkMapper'
 import { CveTriageAssistant } from './components/CveTriageAssistant'
 import { IncidentResponseKit } from './components/IncidentResponseKit'
+import { PatchGenerator } from './components/PatchGenerator'
+import { AttackTreeSimulator } from './components/AttackTreeSimulator'
+import { SyntheticAuditLab } from './components/SyntheticAuditLab'
 import { ExecutiveBoardBriefing } from './components/ExecutiveBoardBriefing'
 import type { IncidentResponseProgress } from './components/incidentResponseProgress'
 import {
@@ -216,6 +219,9 @@ const workspaceSections = [
   { id: 'overview', label: 'Overview' },
   { id: 'threat-analyzer', label: 'Threat analyzer' },
   { id: 'cve-triage', label: 'CVE triage' },
+  { id: 'patch-generator', label: 'Patch generator' },
+  { id: 'attack-simulator', label: 'Attack simulator' },
+  { id: 'audit-log-lab', label: 'Audit log lab' },
   { id: 'security-checkup', label: 'Security checkup' },
   { id: 'mobile-device-posture', label: 'Mobile posture' },
   { id: 'incident-response', label: 'Incident response' },
@@ -2394,6 +2400,12 @@ const securityGrade =
           onProgressChange={setIncidentProgress}
         />
 
+        <PatchGenerator language={assistantLanguage} />
+
+        <AttackTreeSimulator language={assistantLanguage} />
+
+        <SyntheticAuditLab language={assistantLanguage} />
+
          <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
 
@@ -2465,6 +2477,26 @@ const securityGrade =
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>How do sign-in and account deletion work?</summary>
             <p>Account access uses the configured Supabase authentication service. If account deletion is available in your workspace, follow the in-app confirmation steps. Deletion requests use the connected account-deletion function; contact support if the app reports that deletion could not be confirmed.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What does Patch generator do?</summary>
+            <p>It proposes secure rewrites for Dockerfiles, Terraform, Kubernetes YAML, and application code, with the identified risk, a proposed diff, rationale, validation steps, and rollback instructions. Proposals are for human review only: ShieldPocket does not run, apply, or deploy changes. Request text is sent to Supabase and Meta and uses API credits, so do not include secrets or personal data.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is Attack-tree simulator?</summary>
+            <p>Pick a hypothetical threat scenario and describe your assets to explore attack paths, potential blast radius, defensive controls, and recommended mitigations. Every path is labeled a hypothetical simulation: nothing is verified, and results do not mean an attack occurred or a system is compromised.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>Which compliance frameworks are supported?</summary>
+            <p>The compliance mapper covers NIST CSF 2.0, ISO/IEC 27001:2022, GDPR, PCI DSS, and the EU AI Act. Each selected framework is mapped in its own section with source references. Mappings are preliminary guidance only, not legal advice, certification, or proof of compliance.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is Audit log lab?</summary>
+            <p>It generates bounded batches of up to 100 explicitly simulated security events with timestamps, types, severity, assets, and correlation IDs for dashboards and backend testing. All identities are fictitious and every event is labeled simulated; nothing represents a real incident. Batches can be downloaded as JSON.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
