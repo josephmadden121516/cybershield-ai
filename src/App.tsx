@@ -2467,9 +2467,14 @@ const securityGrade =
             <p>Account access uses the configured Supabase authentication service. If account deletion is available in your workspace, follow the in-app confirmation steps. Deletion requests use the connected account-deletion function; contact support if the app reports that deletion could not be confirmed.</p>
           </details>
 
-          <details style={{ padding: "12px 0" }}>
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>How does biometric app unlock work?</summary>
-            <p>On supported devices, ShieldPocket can use the device's biometric-authentication capability to unlock the protected workspace. Availability depends on device support and system settings. Keep your device passcode secure and follow the on-screen instructions if authentication fails.</p>
+            <p>In the native mobile app, your workspace locks automatically when the app starts and whenever you return to it. Unlock with Face ID, Touch ID, or your device passcode — the button names whichever your device supports — or use email and password instead. Availability depends on your device settings; if biometrics are unavailable, the app explains what to set up.</p>
+          </details>
+
+          <details style={{ padding: "12px 0" }}>
+            <summary>What should I do if biometric unlock fails?</summary>
+            <p>Follow the on-screen message: it distinguishes a cancelled attempt from missing enrollment, too many failed attempts, or a missing device passcode. After several failures, the system requires your device passcode before biometrics work again. You can always unlock with email and password instead.</p>
           </details>
         </section>
 
