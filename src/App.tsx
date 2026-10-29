@@ -21,6 +21,8 @@ import { IncidentResponseKit } from './components/IncidentResponseKit'
 import { PatchGenerator } from './components/PatchGenerator'
 import { AttackTreeSimulator } from './components/AttackTreeSimulator'
 import { SyntheticAuditLab } from './components/SyntheticAuditLab'
+import { PhishDrillGenerator } from './components/PhishDrillGenerator'
+import { getSampleActivityEvents, getSampleReports } from './lib/demoData'
 import { ExecutiveBoardBriefing } from './components/ExecutiveBoardBriefing'
 import type { IncidentResponseProgress } from './components/incidentResponseProgress'
 import {
@@ -222,6 +224,7 @@ const workspaceSections = [
   { id: 'patch-generator', label: 'Patch generator' },
   { id: 'attack-simulator', label: 'Attack simulator' },
   { id: 'audit-log-lab', label: 'Audit log lab' },
+  { id: 'phish-drill', label: 'Phish drill' },
   { id: 'security-checkup', label: 'Security checkup' },
   { id: 'mobile-device-posture', label: 'Mobile posture' },
   { id: 'incident-response', label: 'Incident response' },
@@ -370,6 +373,8 @@ function App() {
   const [biometryStatus, setBiometryStatus] = useState<BiometryAvailability | null>(null)
   const biometryStatusRef = useRef<BiometryAvailability | null>(null)
   const faceLockBusyRef = useRef(false)
+  const [demoMode, setDemoMode] = useState(false)
+  const demoModeRef = useRef(false)
   const currentUserId = user?.id
 
   useEffect(() => {
@@ -480,7 +485,7 @@ function App() {
         setBiometryStatus(biometryStatusRef.current)
 
         resumeHandle = await BiometricAuth.addResumeListener((info) => {
-          if (cancelled) return
+          if (cancelled || demoModeRef.current) return
           biometryStatusRef.current = {
             available: info.isAvailable,
             biometryType: info.biometryType,
@@ -839,7 +844,7 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
     title: string,
     detail: string
   ) {
-    const ownerId = user?.id ?? 'guest'
+    const ownerId = user?.id ?? (demoMode ? 'demo' : 'guest')
     const event: SecurityActivityEvent = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       ownerId,
@@ -850,6 +855,10 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
     }
     const nextEvents = [event, ...activityEvents].slice(0, 30)
     setActivityEvents(nextEvents)
+    if (demoMode) {
+      setActivityStorageError(false)
+      return
+    }
     const saved = saveSecurityActivityEvents(ownerId, nextEvents)
     setActivityStorageError(!saved)
     if (!saved) {
@@ -858,12 +867,36 @@ const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
   }
 
   function clearActivity() {
-    const ownerId = user?.id ?? 'guest'
+    const ownerId = user?.id ?? (demoMode ? 'demo' : 'guest')
     setActivityEvents([])
+    if (demoMode) {
+      setActivityStorageError(false)
+      return
+    }
     const cleared = clearSecurityActivityEvents(ownerId)
     setActivityStorageError(!cleared)
     if (!cleared) {
       console.error('Could not clear local security activity history.')
+    }
+  }
+
+  function enterDemoMode() {
+    demoModeRef.current = true
+    setActivityEvents(getSampleActivityEvents(assistantLanguage))
+    setReports(getSampleReports(assistantLanguage))
+    setReportMessage('')
+    setDemoMode(true)
+    setIsLocked(false)
+  }
+
+  function exitDemoMode() {
+    demoModeRef.current = false
+    setDemoMode(false)
+    setActivityEvents(loadSecurityActivityEvents('guest'))
+    setReports([])
+    setReportMessage('')
+    if (Capacitor.isNativePlatform()) {
+      setIsLocked(true)
     }
   }
 
@@ -1459,6 +1492,37 @@ const securityGrade =
       </aside>
 
       <main className="main-content">
+        {demoMode && (
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              marginBottom: '12px',
+              background: 'rgba(255, 211, 138, 0.12)',
+              border: '1px solid rgba(255, 211, 138, 0.4)',
+            }}
+          >
+            <span>
+              {assistantLanguage === 'es'
+                ? 'MODO DEMO: datos de ejemplo. Nada se guarda.'
+                : 'DEMO MODE: sample data. Nothing is saved.'}
+            </span>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ marginTop: 0 }}
+              onClick={exitDemoMode}
+            >
+              {assistantLanguage === 'es' ? 'Salir de la demo' : 'Exit demo'}
+            </button>
+          </div>
+        )}
         <header className="topbar">
           <span>
             Workspace / {workspaceSections.find((section) => section.id === activeSection)?.label}
@@ -1649,6 +1713,17 @@ const securityGrade =
               disabled={authLoading}
             >
               {authLoading ? 'Please wait...' : 'Sign in with a passkey'}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={enterDemoMode}
+              disabled={authLoading}
+              style={{ marginTop: '12px' }}
+            >
+              {assistantLanguage === 'es'
+                ? 'Explorar con datos de ejemplo'
+                : 'Explore with sample data'}
             </button>
             </>
           )}
@@ -1993,7 +2068,7 @@ const securityGrade =
 
           {reportsLoading ? (
             <p>Loading saved reports...</p>
-          ) : !user ? (
+          ) : !user && !demoMode ? (
             <p>Sign in to view and manage your saved reports.</p>
           ) : reports.length === 0 ? (
             <p>No saved reports yet. Analyze a message and select Save report to get started.</p>
@@ -2406,6 +2481,8 @@ const securityGrade =
 
         <SyntheticAuditLab language={assistantLanguage} />
 
+        <PhishDrillGenerator language={assistantLanguage} />
+
          <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
 
@@ -2497,6 +2574,11 @@ const securityGrade =
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
             <summary>What is Audit log lab?</summary>
             <p>It generates bounded batches of up to 100 explicitly simulated security events with timestamps, types, severity, assets, and correlation IDs for dashboards and backend testing. All identities are fictitious and every event is labeled simulated; nothing represents a real incident. Batches can be downloaded as JSON.</p>
+          </details>
+
+          <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
+            <summary>What is Phish drill generator?</summary>
+            <p>Pick a lure type and describe your team to generate a fictional training phish with planted red flags, teaching notes, and a debrief. Lures use fictitious people and domains and are for training only: never use them to deceive real victims.</p>
           </details>
 
           <details style={{ padding: "12px 0", borderBottom: "1px solid var(--border-color, #dce7eb)" }}>
@@ -2626,6 +2708,18 @@ const securityGrade =
               {authMode === 'signin'
                 ? 'Need an account? Create one'
                 : 'Already have an account? Sign in'}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button face-lock-button"
+              onClick={enterDemoMode}
+              disabled={authLoading || faceLockBusy}
+              style={{ marginTop: '10px' }}
+            >
+              {assistantLanguage === 'es'
+                ? 'Explorar la demo'
+                : 'Explore the demo'}
             </button>
           </div>
         </div>

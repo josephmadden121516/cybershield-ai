@@ -147,3 +147,77 @@ export async function requestAttackTreeSimulation(
   }
   return data.simulation
 }
+
+export interface PhishDrill {
+  lureTitle: string
+  subject: string
+  sender: string
+  body: string
+  redFlags: string[]
+  teachingNotes: string[]
+  debrief: string
+}
+
+const MAX_DRILL_TYPE_LENGTH = 200
+
+function isPhishDrill(value: unknown): value is PhishDrill {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.lureTitle) &&
+    isNonEmptyString(record.subject) &&
+    isNonEmptyString(record.sender) &&
+    isNonEmptyString(record.body) &&
+    isStringArray(record.redFlags) &&
+    record.redFlags.length > 0 &&
+    isStringArray(record.teachingNotes) &&
+    isNonEmptyString(record.debrief)
+  )
+}
+
+export async function requestPhishDrill(
+  drillType: string,
+  audience: string,
+  language: 'en' | 'es'
+): Promise<PhishDrill> {
+  const trimmedDrillType = drillType.trim()
+  const trimmedAudience = audience.trim()
+  if (!trimmedDrillType) {
+    throw new Error('Select a drill type.')
+  }
+  if (trimmedDrillType.length > MAX_DRILL_TYPE_LENGTH) {
+    throw new Error(
+      `Drill type must be ${MAX_DRILL_TYPE_LENGTH} characters or fewer.`
+    )
+  }
+  if (!trimmedAudience) {
+    throw new Error('Describe the training audience.')
+  }
+  if (trimmedAudience.length > MAX_ADVISOR_INPUT_LENGTH) {
+    throw new Error(
+      `Audience must be ${MAX_ADVISOR_INPUT_LENGTH} characters or fewer.`
+    )
+  }
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'phishdrill',
+      drillType: trimmedDrillType,
+      audience: trimmedAudience,
+      language,
+    },
+  })
+
+  if (error) throw error
+  if (!isPhishDrill(data?.drill)) {
+    throw new Error('The AI service returned an unreadable drill.')
+  }
+  return data.drill
+}
