@@ -1,3 +1,5 @@
+import { candidateJsonPayloads } from "./jsonReply.ts";
+
 export interface AttackPath {
   title: string;
   steps: string[];
@@ -45,11 +47,7 @@ function cleanAttackPaths(value: unknown): AttackPath[] | null {
 }
 
 export function parseAttackTreeSimulation(reply: string): AttackTreeSimulation | null {
-  const candidates = [reply.trim()];
-  const fenced = reply.match(/```json\s*([\s\S]*?)```/i);
-  if (fenced) {
-    candidates.push(fenced[1].trim());
-  }
+  const candidates = candidateJsonPayloads(reply);
 
   for (const candidate of candidates) {
     try {

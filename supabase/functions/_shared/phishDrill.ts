@@ -1,3 +1,5 @@
+import { candidateJsonPayloads } from "./jsonReply.ts";
+
 export interface PhishDrill {
   lureTitle: string;
   subject: string;
@@ -24,11 +26,7 @@ function cleanStringArray(value: unknown): string[] | null {
 }
 
 export function parsePhishDrill(reply: string): PhishDrill | null {
-  const candidates = [reply.trim()];
-  const fenced = reply.match(/```json\s*([\s\S]*?)```/i);
-  if (fenced) {
-    candidates.push(fenced[1].trim());
-  }
+  const candidates = candidateJsonPayloads(reply);
 
   for (const candidate of candidates) {
     try {

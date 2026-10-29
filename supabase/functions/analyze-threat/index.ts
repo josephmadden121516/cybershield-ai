@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { parseAttackTreeSimulation } from "../_shared/attackTree.ts";
 import { parsePhishDrill } from "../_shared/phishDrill.ts";
+import { extractReplyText, replyRefusal } from "../_shared/replyText.ts";
 
 const META_API_URL = "https://api.meta.ai/v1/chat/completions";
 const MODEL = "muse-spark-1.3";
@@ -459,7 +460,7 @@ Respond in ${language}.
           { role: "user", content: userContent },
         ],
         temperature: 0.2,
-        max_tokens: isAttackTree ? 2400 : isPhishDrill ? 2000 : 1800,
+        max_tokens: isAttackTree ? 8000 : isPhishDrill ? 8000 : 3000,
       }),
       signal: AbortSignal.timeout(30000),
     });
@@ -478,10 +479,15 @@ Respond in ${language}.
     const data = await response.json();
 
     if (isAttackTree) {
-      const reply = data?.choices?.[0]?.message?.content;
-      if (typeof reply !== "string" || reply.trim().length === 0) {
+      const treeChoice = data?.choices?.[0];
+      const reply = extractReplyText(treeChoice);
+      if (!reply) {
         return jsonResponse(
-          { error: "The AI returned an empty simulation." },
+          {
+            error: replyRefusal(treeChoice)
+              ? "The AI declined to generate this simulation."
+              : "The AI returned an empty simulation.",
+          },
           502,
         );
       }
@@ -497,10 +503,15 @@ Respond in ${language}.
     }
 
     if (isPhishDrill) {
-      const drillReply = data?.choices?.[0]?.message?.content;
-      if (typeof drillReply !== "string" || drillReply.trim().length === 0) {
+      const drillChoice = data?.choices?.[0];
+      const drillReply = extractReplyText(drillChoice);
+      if (!drillReply) {
         return jsonResponse(
-          { error: "The AI returned an empty drill." },
+          {
+            error: replyRefusal(drillChoice)
+              ? "The AI declined to generate this drill."
+              : "The AI returned an empty drill.",
+          },
           502,
         );
       }

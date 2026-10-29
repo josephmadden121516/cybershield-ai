@@ -1,4 +1,5 @@
 import { isNonEmptyString, parseRemediationReply } from "./parse.ts";
+import { extractReplyText, replyRefusal } from "../_shared/replyText.ts";
 
 const META_API_URL = "https://api.meta.ai/v1/chat/completions";
 const MODEL = "muse-spark-1.3";
@@ -134,7 +135,7 @@ testing before use.
           },
         ],
         temperature: 0.2,
-        max_tokens: 2500,
+        max_tokens: 8000,
       }),
       signal: AbortSignal.timeout(30000),
     });
@@ -151,11 +152,16 @@ testing before use.
     }
 
     const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content;
+    const patchChoice = data?.choices?.[0];
+    const reply = extractReplyText(patchChoice);
 
-    if (typeof reply !== "string" || reply.trim().length === 0) {
+    if (!reply) {
       return jsonResponse(
-        { error: "The AI returned an empty remediation." },
+        {
+          error: replyRefusal(patchChoice)
+            ? "The AI declined to generate this remediation."
+            : "The AI returned an empty remediation.",
+        },
         502,
       );
     }

@@ -1,3 +1,5 @@
+import { candidateJsonPayloads } from "../_shared/jsonReply.ts";
+
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -22,11 +24,7 @@ function cleanSteps(value: unknown): string[] | null {
 }
 
 export function parseRemediationReply(reply: string): RemediationPatch | null {
-  const candidates = [reply.trim()];
-  const fenced = reply.match(/```json\s*([\s\S]*?)```/i);
-  if (fenced) {
-    candidates.push(fenced[1].trim());
-  }
+  const candidates = candidateJsonPayloads(reply);
 
   for (const candidate of candidates) {
     try {
