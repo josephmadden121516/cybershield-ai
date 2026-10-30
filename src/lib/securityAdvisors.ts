@@ -579,3 +579,117 @@ export async function requestExploitIntel(cve: string): Promise<ExploitIntel> {
   }
   return data.intel
 }
+
+export interface KevWatchHit {
+  cveId: string
+  vendorProject: string | null
+  product: string | null
+  dateAdded: string | null
+  shortDescription: string | null
+  requiredAction: string | null
+  dueDate: string | null
+  matchedKeyword: string
+}
+
+export interface KevWatchResult {
+  matches: KevWatchHit[]
+  checkedAt: string
+}
+
+function isKevWatchHit(value: unknown): value is KevWatchHit {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.cveId) &&
+    isNonEmptyString(record.matchedKeyword)
+  )
+}
+
+/**
+ * Match a watchlist against CISA's actively-exploited catalog. A free
+ * read-only lookup; nothing is scanned or probed.
+ */
+export async function requestKevWatch(
+  keywords: string[]
+): Promise<KevWatchResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'The watcher is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: { task: 'kevwatch', keywords },
+  })
+
+  if (error) throw error
+  if (
+    !data ||
+    !Array.isArray(data.matches) ||
+    !data.matches.every(isKevWatchHit) ||
+    typeof data.checkedAt !== 'string'
+  ) {
+    throw new Error('The watcher returned an unreadable result.')
+  }
+  return { matches: data.matches, checkedAt: data.checkedAt }
+}
+
+export interface UrlCheckResult {
+  url: string
+  hostname: string
+  verdict: 'Safe' | 'Suspicious' | 'Dangerous'
+  reasons: string[]
+  gsbAvailable: boolean
+  gsbMatch: boolean
+  domainAgeDays: number | null
+  ageAvailable: boolean
+  typoFlags: string[]
+}
+
+function isUrlCheckResult(value: unknown): value is UrlCheckResult {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.url) &&
+    isNonEmptyString(record.hostname) &&
+    (record.verdict === 'Safe' ||
+      record.verdict === 'Suspicious' ||
+      record.verdict === 'Dangerous') &&
+    Array.isArray(record.reasons) &&
+    record.reasons.every(isNonEmptyString) &&
+    typeof record.gsbAvailable === 'boolean' &&
+    typeof record.gsbMatch === 'boolean' &&
+    (record.domainAgeDays === null ||
+      typeof record.domainAgeDays === 'number') &&
+    typeof record.ageAvailable === 'boolean' &&
+    Array.isArray(record.typoFlags) &&
+    record.typoFlags.every(isNonEmptyString)
+  )
+}
+
+/**
+ * Check a URL against Google Safe Browsing (when a key is configured),
+ * domain-age records, and lookalike heuristics. Read-only lookups; the
+ * page is never opened and nothing is executed.
+ */
+export async function requestUrlCheck(url: string): Promise<UrlCheckResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'Link check is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: { task: 'urlcheck', url },
+  })
+
+  if (error) throw error
+  if (!isUrlCheckResult(data)) {
+    throw new Error('The link checker returned an unreadable result.')
+  }
+  return data
+}

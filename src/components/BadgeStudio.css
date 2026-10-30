@@ -1,0 +1,166 @@
+.badge-studio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 760px) {
+  .badge-studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.badge-studio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge-studio-label {
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.badge-studio-radios,
+.badge-studio-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.badge-studio-radios label,
+.badge-studio-zones label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.badge-studio-native {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.badge-studio-native li {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-inner, #f2f5f7);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
+.badge-studio-preview {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.badge-card {
+  width: 300px;
+  border-radius: 14px;
+  padding: 18px;
+  background: #1f3a4d;
+  color: #fff;
+}
+
+.badge-card.badge-contractor {
+  background: #5a4a1f;
+}
+
+.badge-card.badge-visitor {
+  background: #4d1f2e;
+}
+
+.badge-card.badge-expired {
+  opacity: 0.75;
+}
+
+.badge-card-org {
+  margin: 0 0 12px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.badge-card-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.badge-card-avatar {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #e8b64c;
+  color: #17242e;
+  font-weight: 800;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-card-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.badge-card-role {
+  margin: 2px 0 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.badge-card-qr {
+  display: flex;
+  justify-content: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.badge-card-rotate {
+  text-align: center;
+  font-size: 13px;
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge-card-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.badge-card-zones span {
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.badge-card-expiry {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badge-studio-disclaimer {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 0;
+  margin-top: 14px;
+}

@@ -87,3 +87,20 @@
     width: 100%;
   }
 }
+
+.mobile-device-guide {
+  background: var(--card-inner, #f2f5f7);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+
+.mobile-device-guide summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mobile-device-guide ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}

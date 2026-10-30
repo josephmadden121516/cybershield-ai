@@ -1,0 +1,64 @@
+.link-safety-row {
+  display: flex;
+  gap: 8px;
+}
+
+.link-safety-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.link-safety-error {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.link-safety-results {
+  margin-top: 14px;
+}
+
+.link-safety-results ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.link-safety-dangerous {
+  color: #b3261e;
+  font-weight: 700;
+}
+
+.link-safety-suspicious {
+  color: #9a5b00;
+  font-weight: 700;
+}
+
+.link-safety-safe {
+  color: #1e7e34;
+  font-weight: 600;
+}
+
+.link-safety-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 12px 0 0;
+}
+
+.link-safety-facts div {
+  display: flex;
+  gap: 8px;
+}
+
+.link-safety-facts dt {
+  font-weight: 600;
+}
+
+.link-safety-facts dd {
+  margin: 0;
+}
+
+.link-safety-disclaimer {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 0;
+}

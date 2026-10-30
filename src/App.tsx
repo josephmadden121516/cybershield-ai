@@ -13,6 +13,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
 import VoiceAssistant from './VoiceAssistant'
 import { SecurityScoreWidget } from './components/SecurityScoreWidget'
+import { BadgeStudio } from './components/BadgeStudio'
 import { MobileDevicePosture } from './components/MobileDevicePosture'
 import { PhishingResponseGuide } from './components/PhishingResponseGuide'
 import { ComplianceFrameworkMapper } from './components/ComplianceFrameworkMapper'
@@ -23,9 +24,12 @@ import { AttackTreeSimulator } from './components/AttackTreeSimulator'
 import { SyntheticAuditLab } from './components/SyntheticAuditLab'
 import { PhishDrillGenerator } from './components/PhishDrillGenerator'
 import { PhishingGame } from './components/PhishingGame'
+import { LinkSafetyChecker } from './components/LinkSafetyChecker'
+import { ScamTextAnalyzer } from './components/ScamTextAnalyzer'
 import { IncidentTimelineReconstructor } from './components/IncidentTimelineReconstructor'
 import { UsageMeter } from './components/UsageMeter'
 import { ThreatDigest } from './components/ThreatDigest'
+import { ThreatWatcher } from './components/ThreatWatcher'
 import { WarRoomDemo } from './components/WarRoomDemo'
 import { getSampleActivityEvents, getSampleReports } from './lib/demoData'
 import { assertWithinDailyBudget, trackUsage } from './lib/usageMeter'
@@ -1820,6 +1824,8 @@ const securityGrade =
           activity={activityEvents}
         />
 
+        <ThreatWatcher language={assistantLanguage} />
+
         <section id="threat-analyzer" className="content-card">
           <div className="card-heading">
             <div>
@@ -2339,7 +2345,9 @@ const securityGrade =
           </div>
         </section>
 
-        <MobileDevicePosture />
+        <MobileDevicePosture language={assistantLanguage} />
+
+        <BadgeStudio language={assistantLanguage} />
 
         <section id="firewall-checkup" className="content-card">
           <div className="card-heading">
@@ -2577,6 +2585,10 @@ const securityGrade =
         <PhishDrillGenerator language={assistantLanguage} />
 
         <PhishingGame language={assistantLanguage} />
+
+        <LinkSafetyChecker language={assistantLanguage} />
+
+        <ScamTextAnalyzer language={assistantLanguage} />
 
         <IncidentTimelineReconstructor language={assistantLanguage} />
 

@@ -1,0 +1,49 @@
+.scam-text-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.scam-text-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #dce7eb);
+}
+
+.scam-text-button {
+  margin-top: 10px;
+}
+
+.scam-text-results {
+  margin-top: 14px;
+}
+
+.scam-text-results ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.scam-text-high {
+  color: #b3261e;
+  font-weight: 700;
+}
+
+.scam-text-moderate {
+  color: #9a5b00;
+  font-weight: 700;
+}
+
+.scam-text-low {
+  color: #1e7e34;
+  font-weight: 600;
+}
+
+.scam-text-disclaimer {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 0;
+}

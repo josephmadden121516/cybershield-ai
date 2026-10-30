@@ -224,6 +224,75 @@ export function findKevEntry(feed: unknown, cveId: string): KevMatch | null {
   };
 }
 
+export interface KevWatchHit {
+  cveId: string;
+  vendorProject: string | null;
+  product: string | null;
+  dateAdded: string | null;
+  shortDescription: string | null;
+  requiredAction: string | null;
+  dueDate: string | null;
+  matchedKeyword: string;
+}
+
+export function cleanKeywords(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 20) {
+    return null;
+  }
+  const keywords: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") return null;
+    const trimmed = entry.trim();
+    if (!trimmed || trimmed.length > 100) return null;
+    keywords.push(trimmed);
+  }
+  return [...new Set(keywords)];
+}
+
+/**
+ * Match watchlist keywords against vendor/product names in the KEV feed.
+ * Substring, case-insensitive; each entry reported once under its first
+ * matching keyword.
+ */
+export function matchKevEntries(
+  feed: unknown,
+  keywords: string[],
+): KevWatchHit[] | null {
+  if (feed === null || typeof feed !== "object" || Array.isArray(feed)) {
+    return null;
+  }
+  const list = (feed as Record<string, unknown>).vulnerabilities;
+  if (!Array.isArray(list)) return null;
+  const lowered = keywords.map((keyword) => keyword.toLowerCase());
+  const hits: KevWatchHit[] = [];
+  for (const entry of list) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.cveID !== "string" || !record.cveID.trim()) continue;
+    const haystack =
+      `${typeof record.vendorProject === "string" ? record.vendorProject : ""} ${typeof record.productName === "string" ? record.productName : ""}`.toLowerCase();
+    const hitIndex = lowered.findIndex((keyword) => haystack.includes(keyword));
+    if (hitIndex === -1) continue;
+    const text = (key: string): string | null => {
+      const value = record[key];
+      return typeof value === "string" && value.trim() ? value.trim() : null;
+    };
+    hits.push({
+      cveId: (record.cveID as string).trim(),
+      vendorProject: text("vendorProject"),
+      product: text("productName"),
+      dateAdded: text("dateAdded"),
+      shortDescription: text("shortDescription"),
+      requiredAction: text("requiredAction"),
+      dueDate: text("dueDate"),
+      matchedKeyword: keywords[hitIndex],
+    });
+  }
+  return hits;
+}
+
 export function parseEpssScore(payload: unknown, cveId: string): EpssScore | null {
   if (
     payload === null || typeof payload !== "object" || Array.isArray(payload)

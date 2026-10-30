@@ -2,7 +2,9 @@ import { strict as assert } from "node:assert";
 import {
   buildDepFindings,
   cleanDepPackages,
+  cleanKeywords,
   findKevEntry,
+  matchKevEntries,
   normalizeCveId,
   parseEpssScore,
 } from "./vulnIntel.ts";
@@ -109,4 +111,42 @@ Deno.test("parseEpssScore reads string scores", () => {
   });
   assert.equal(parseEpssScore(payload, "CVE-2000-0001"), null);
   assert.equal(parseEpssScore({}, "CVE-2024-3094"), null);
+});
+
+Deno.test("cleanKeywords validates watchlists", () => {
+  assert.deepEqual(cleanKeywords([" Fortinet ", "fortinet"]), ["Fortinet", "fortinet"]);
+  assert.equal(cleanKeywords([]), null);
+  assert.equal(cleanKeywords(["  "]), null);
+  assert.equal(cleanKeywords("Fortinet"), null);
+});
+
+Deno.test("matchKevEntries finds vendor and product hits", () => {
+  const feed = {
+    vulnerabilities: [
+      {
+        cveID: "CVE-2024-0001",
+        vendorProject: "Acme Corp",
+        productName: "Acme VPN",
+        dateAdded: "2024-01-01",
+        shortDescription: "Buffer overflow.",
+        requiredAction: "Apply updates.",
+        dueDate: "2024-01-22",
+      },
+      {
+        cveID: "CVE-2024-0002",
+        vendorProject: "Other",
+        productName: "Other App",
+        dateAdded: "2024-02-01",
+        shortDescription: "XSS.",
+        requiredAction: "Apply updates.",
+        dueDate: "2024-02-22",
+      },
+    ],
+  };
+  const hits = matchKevEntries(feed, ["acme", "missing"]);
+  assert.equal(hits?.length, 1);
+  assert.equal(hits?.[0].cveId, "CVE-2024-0001");
+  assert.equal(hits?.[0].matchedKeyword, "acme");
+  assert.deepEqual(matchKevEntries(feed, ["missing"]), []);
+  assert.equal(matchKevEntries({}, ["acme"]), null);
 });

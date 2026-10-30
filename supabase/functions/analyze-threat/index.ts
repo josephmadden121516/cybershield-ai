@@ -5,11 +5,20 @@ import { parsePhishGamePack } from "../_shared/phishGame.ts";
 import {
   buildDepFindings,
   cleanDepPackages,
+  cleanKeywords,
   findKevEntry,
+  matchKevEntries,
   normalizeCveId,
   parseEpssScore,
 } from "../_shared/vulnIntel.ts";
 import { extractReplyText, replyRefusal } from "../_shared/replyText.ts";
+import {
+  buildVerdict,
+  cleanTargetUrl,
+  daysSince,
+  detectTypoSquat,
+  rdapCreationDate,
+} from "../_shared/urlIntel.ts";
 import { toTokenUsage } from "../_shared/usage.ts";
 
 const META_API_URL = "https://api.meta.ai/v1/chat/completions";
@@ -163,6 +172,8 @@ Deno.serve(async (req) => {
     task !== "phishgame" &&
     task !== "depscan" &&
     task !== "exploitintel" &&
+    task !== "kevwatch" &&
+    task !== "urlcheck" &&
     task !== "digest" &&
     task !== "explain" &&
     task !== "polish" &&
@@ -175,6 +186,8 @@ Deno.serve(async (req) => {
   const isPhishGame = task === "phishgame";
   const isDepScan = task === "depscan";
   const isExploitIntel = task === "exploitintel";
+  const isKevWatch = task === "kevwatch";
+  const isUrlCheck = task === "urlcheck";
 
   if (body.message !== undefined && typeof body.message !== "string") {
     return jsonResponse({ error: "Message must be text." }, 400);
@@ -258,6 +271,8 @@ Deno.serve(async (req) => {
     !isPhishGame &&
     !isDepScan &&
     !isExploitIntel &&
+    !isKevWatch &&
+    !isUrlCheck &&
     (task !== "threat" || image === undefined)
   ) {
     return jsonResponse({ error: "Provide text to analyze." }, 400);
@@ -667,6 +682,145 @@ Respond in ${language}.
     }
     return jsonResponse({
       intel: { cve: cveId, kev, kevAvailable, epss, epssAvailable },
+    });
+  }
+
+  if (isKevWatch) {
+    const keywords = cleanKeywords(body.keywords);
+    if (!keywords) {
+      return jsonResponse(
+        { error: "Provide 1-20 watchlist keywords." },
+        400,
+      );
+    }
+    let feed: unknown = null;
+    try {
+      const kevResponse = await fetch(
+        "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        { signal: AbortSignal.timeout(20000) },
+      );
+      if (kevResponse.ok) feed = await kevResponse.json();
+    } catch {
+      feed = null;
+    }
+    const matches = feed === null ? null : matchKevEntries(feed, keywords);
+    if (matches === null) {
+      return jsonResponse(
+        { error: "The KEV catalog could not be checked right now." },
+        502,
+      );
+    }
+    return jsonResponse({ matches, checkedAt: new Date().toISOString() });
+  }
+
+  if (isUrlCheck) {
+    const target = cleanTargetUrl(body.url);
+    if (!target) {
+      return jsonResponse({ error: "Provide a valid http(s) URL." }, 400);
+    }
+    const typoFlags = detectTypoSquat(target.hostname);
+
+    let gsbMatch = false;
+    let gsbAvailable = false;
+    const gsbKey = Deno.env.get("SAFE_BROWSING_API_KEY");
+    if (gsbKey) {
+      try {
+        const gsbResponse = await fetch(
+          `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${gsbKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              client: { clientId: "shieldpocket", clientVersion: "1.0" },
+              threatInfo: {
+                threatTypes: [
+                  "MALWARE",
+                  "SOCIAL_ENGINEERING",
+                  "UNWANTED_SOFTWARE",
+                  "POTENTIALLY_HARMFUL_APPLICATION",
+                ],
+                platformTypes: ["ANY_PLATFORM"],
+                threatEntryTypes: ["URL"],
+                threatEntries: [{ url: target.toString() }],
+              },
+            }),
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        if (gsbResponse.ok) {
+          const gsbData = await gsbResponse.json();
+          gsbAvailable = true;
+          gsbMatch =
+            Array.isArray(gsbData?.matches) && gsbData.matches.length > 0;
+        }
+      } catch {
+        gsbAvailable = false;
+      }
+    }
+
+    let domainAgeDays: number | null = null;
+    let ageAvailable = false;
+    try {
+      const tld = target.hostname.split(".").pop() ?? "";
+      const bootstrapResponse = await fetch(
+        "https://data.iana.org/rdap/dns.json",
+        { signal: AbortSignal.timeout(15000) },
+      );
+      if (bootstrapResponse.ok) {
+        const bootstrap = await bootstrapResponse.json();
+        const services: unknown = bootstrap?.services;
+        let server: string | null = null;
+        if (Array.isArray(services)) {
+          for (const entry of services) {
+            if (!Array.isArray(entry) || entry.length < 2) continue;
+            const tlds: unknown = entry[0];
+            const urls: unknown = entry[1];
+            if (
+              Array.isArray(tlds) &&
+              tlds.includes(tld) &&
+              Array.isArray(urls) &&
+              typeof urls[0] === "string"
+            ) {
+              server = urls[0];
+              break;
+            }
+          }
+        }
+        if (server) {
+          const rdapResponse = await fetch(
+            `${server}domain/${target.hostname}`,
+            { signal: AbortSignal.timeout(15000) },
+          );
+          if (rdapResponse.ok) {
+            const created = rdapCreationDate(await rdapResponse.json());
+            if (created) {
+              domainAgeDays = daysSince(created);
+              ageAvailable = true;
+            }
+          }
+        }
+      }
+    } catch {
+      ageAvailable = false;
+    }
+
+    const { verdict, reasons } = buildVerdict({
+      gsbMatch,
+      gsbAvailable,
+      domainAgeDays,
+      ageAvailable,
+      typoFlags,
+    });
+    return jsonResponse({
+      url: target.toString(),
+      hostname: target.hostname,
+      verdict,
+      reasons,
+      gsbAvailable,
+      gsbMatch,
+      domainAgeDays,
+      ageAvailable,
+      typoFlags,
     });
   }
 

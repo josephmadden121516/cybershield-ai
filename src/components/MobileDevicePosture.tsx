@@ -5,6 +5,10 @@ import './MobileDevicePosture.css'
 
 type ManualCheck = 'unchecked' | 'ok' | 'attention'
 
+interface MobileDevicePostureProps {
+  language: 'en' | 'es'
+}
+
 interface DeviceCheckResult {
   deviceIsSecure: boolean
   isAvailable: boolean
@@ -30,7 +34,8 @@ const manualChecks: Array<{
   },
 ]
 
-export function MobileDevicePosture() {
+export function MobileDevicePosture({ language }: MobileDevicePostureProps) {
+  const isEs = language === 'es'
   const platform = Capacitor.getPlatform()
   const isNative = Capacitor.isNativePlatform()
   const [isChecking, setIsChecking] = useState(false)
@@ -170,6 +175,51 @@ export function MobileDevicePosture() {
           </div>
         ))}
       </div>
+      <h3>{isEs ? 'Guías de refuerzo' : 'Hardening guides'}</h3>
+      <p className="mobile-device-note">
+        {isEs
+          ? 'ShieldPocket no puede cambiar estos ajustes por ti: son interruptores de Apple. Sigue los pasos en tu iPhone.'
+          : 'ShieldPocket cannot flip these switches for you — they are Apple settings. Follow the steps on your iPhone.'}
+      </p>
+      <details className="mobile-device-guide">
+        <summary>
+          {isEs
+            ? 'Activar la Protección avanzada de datos de iCloud'
+            : 'Turn on iCloud Advanced Data Protection'}
+        </summary>
+        {isEs ? (
+          <ol>
+            <li>Actualiza todos tus dispositivos Apple a la versión más reciente del sistema.</li>
+            <li>Configura un contacto de recuperación: Ajustes → tu nombre → Inicio de sesión y seguridad → Recuperación de cuenta.</li>
+            <li>Ve a Ajustes → tu nombre → iCloud → Protección avanzada de datos → Activar.</li>
+            <li>Confirma en cada dispositivo cuando Apple lo pida.</li>
+          </ol>
+        ) : (
+          <ol>
+            <li>Update every Apple device you own to the latest OS release.</li>
+            <li>Set up account recovery first: Settings → your name → Sign-In & Security → Account Recovery.</li>
+            <li>Go to Settings → your name → iCloud → Advanced Data Protection → Turn On.</li>
+            <li>Approve the prompt on each of your devices when asked.</li>
+          </ol>
+        )}
+        <p>
+          {isEs
+            ? 'Esto cifra de extremo a extremo tus copias, fotos, notas y más: ni siquiera Apple puede leerlos. A cambio, si pierdes todos tus dispositivos y tu recuperación, Apple no podrá recuperar tu cuenta. Guarda tu clave de recuperación en un lugar seguro fuera del teléfono.'
+            : 'This end-to-end encrypts your backups, photos, notes, and more: not even Apple can read them. The trade-off: lose every device plus recovery and Apple cannot restore your account. Store your recovery key somewhere safe off the phone.'}
+        </p>
+      </details>
+      <details className="mobile-device-guide">
+        <summary>
+          {isEs
+            ? 'Activar la Protección en caso de robo'
+            : 'Turn on Stolen Device Protection'}
+        </summary>
+        <p>
+          {isEs
+            ? 'Ajustes → Face ID y código → Protección en caso de robo → Activar. Exige Face ID y un retardo de una hora para cambios críticos lejos de lugares conocidos.'
+            : 'Settings → Face ID & Passcode → Stolen Device Protection → On. It requires Face ID plus a one-hour delay for critical changes away from familiar places.'}
+        </p>
+      </details>
       <p className="disclaimer">
         This is a limited posture check, not an MDM compliance scan or a
         security certification. Manual answers are not independently verified.
