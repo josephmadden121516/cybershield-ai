@@ -28,6 +28,7 @@ Verify with `git log --format="%h %ad %s" --date=short`.
 | `c2762b8` | Oct 28 | Compliance mapper, CVE triage assistant |
 | `74a2caa` | Oct 28 | Executive board briefing (local generation, markdown export, print-to-PDF) |
 | `5d9f95c` | Oct 30 | Spot-the-phish game (AI-dealt real/fake email rounds, scored) + hackathon manifest |
+| `5b28fcf` | Oct 30 | Animated attack-path kill-chain graph above simulations + submission pack (checklist, video script) |
 
 ## Pre-existing base (not claimed as hackathon work)
 
