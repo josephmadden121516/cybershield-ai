@@ -450,3 +450,132 @@ export async function requestIncidentTimeline(
   trackUsage(data)
   return timeline
 }
+
+export interface DepScanPackage {
+  name: string
+  version: string
+  ecosystem: 'npm' | 'PyPI' | 'Go'
+}
+
+export interface DepScanCve {
+  id: string
+  aliases: string[]
+  severity: string | null
+  summary: string
+  fixedVersion: string | null
+}
+
+export interface DepScanFinding {
+  package: string
+  version: string
+  ecosystem: string
+  cves: DepScanCve[]
+}
+
+function isDepScanFinding(value: unknown): value is DepScanFinding {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.package) &&
+    isNonEmptyString(record.version) &&
+    isNonEmptyString(record.ecosystem) &&
+    Array.isArray(record.cves) &&
+    record.cves.every(
+      (cve): cve is DepScanCve =>
+        cve !== null &&
+        typeof cve === 'object' &&
+        !Array.isArray(cve) &&
+        isNonEmptyString((cve as Record<string, unknown>).id) &&
+        isStringArray((cve as Record<string, unknown>).aliases) &&
+        isNonEmptyString((cve as Record<string, unknown>).summary)
+    )
+  )
+}
+
+/**
+ * Scan exact package versions against the public OSV database. A pure data
+ * lookup: no model call, no credits, and nothing touches a live target.
+ */
+export async function requestDependencyScan(
+  packages: DepScanPackage[]
+): Promise<DepScanFinding[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'Scanning is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: { task: 'depscan', packages },
+  })
+
+  if (error) throw error
+  if (
+    !data ||
+    !Array.isArray(data.findings) ||
+    !data.findings.every(isDepScanFinding)
+  ) {
+    throw new Error('The scan service returned an unreadable result.')
+  }
+  return data.findings
+}
+
+export interface KevIntel {
+  inKev: boolean
+  vendorProject: string | null
+  product: string | null
+  dateAdded: string | null
+  shortDescription: string | null
+  requiredAction: string | null
+  dueDate: string | null
+}
+
+export interface EpssIntel {
+  epss: number | null
+  percentile: number | null
+}
+
+export interface ExploitIntel {
+  cve: string
+  kev: KevIntel | null
+  kevAvailable: boolean
+  epss: EpssIntel | null
+  epssAvailable: boolean
+}
+
+function isExploitIntel(value: unknown): value is ExploitIntel {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.cve) &&
+    typeof record.kevAvailable === 'boolean' &&
+    typeof record.epssAvailable === 'boolean'
+  )
+}
+
+/**
+ * Look up public exploitability signals for one CVE: CISA's actively-
+ * exploited catalog plus the FIRST EPSS probability score. Read-only
+ * database lookups; nothing is executed or probed.
+ */
+export async function requestExploitIntel(cve: string): Promise<ExploitIntel> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'Exploit intel is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: { task: 'exploitintel', cve },
+  })
+
+  if (error) throw error
+  if (!isExploitIntel(data?.intel)) {
+    throw new Error('The intel service returned an unreadable result.')
+  }
+  return data.intel
+}

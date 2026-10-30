@@ -2,6 +2,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { parseAttackTreeSimulation } from "../_shared/attackTree.ts";
 import { parsePhishDrill } from "../_shared/phishDrill.ts";
 import { parsePhishGamePack } from "../_shared/phishGame.ts";
+import {
+  buildDepFindings,
+  cleanDepPackages,
+  findKevEntry,
+  normalizeCveId,
+  parseEpssScore,
+} from "../_shared/vulnIntel.ts";
 import { extractReplyText, replyRefusal } from "../_shared/replyText.ts";
 import { toTokenUsage } from "../_shared/usage.ts";
 
@@ -154,6 +161,8 @@ Deno.serve(async (req) => {
     task !== "attacktree" &&
     task !== "phishdrill" &&
     task !== "phishgame" &&
+    task !== "depscan" &&
+    task !== "exploitintel" &&
     task !== "digest" &&
     task !== "explain" &&
     task !== "polish" &&
@@ -164,6 +173,8 @@ Deno.serve(async (req) => {
   const isAttackTree = task === "attacktree";
   const isPhishDrill = task === "phishdrill";
   const isPhishGame = task === "phishgame";
+  const isDepScan = task === "depscan";
+  const isExploitIntel = task === "exploitintel";
 
   if (body.message !== undefined && typeof body.message !== "string") {
     return jsonResponse({ error: "Message must be text." }, 400);
@@ -245,6 +256,8 @@ Deno.serve(async (req) => {
     !isAttackTree &&
     !isPhishDrill &&
     !isPhishGame &&
+    !isDepScan &&
+    !isExploitIntel &&
     (task !== "threat" || image === undefined)
   ) {
     return jsonResponse({ error: "Provide text to analyze." }, 400);
@@ -565,6 +578,97 @@ Respond in ${language}.
         : isPhishGame
           ? `Generate a ${gameRounds}-round phishing-spotting game pack.`
         : message;
+
+  // Database lookups answer directly: no model call, no credits, and they
+  // never touch a live target.
+  if (isDepScan) {
+    const packages = cleanDepPackages(body.packages);
+    if (!packages) {
+      return jsonResponse(
+        {
+          error:
+            "Provide 1-100 packages with name, version, and ecosystem (npm, PyPI, Go).",
+        },
+        400,
+      );
+    }
+    let osvResponse: Response;
+    try {
+      osvResponse = await fetch("https://api.osv.dev/v1/querybatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          queries: packages.map((pkg) => ({
+            package: { name: pkg.name, ecosystem: pkg.ecosystem },
+            version: pkg.version,
+          })),
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch {
+      return jsonResponse(
+        { error: "Could not reach the vulnerability database. Please try again." },
+        502,
+      );
+    }
+    if (!osvResponse.ok) {
+      return jsonResponse(
+        { error: "The vulnerability database could not complete the scan." },
+        502,
+      );
+    }
+    const osvData = await osvResponse.json();
+    const findings = buildDepFindings(osvData?.results, packages);
+    if (!findings) {
+      console.error("OSV reply was not the expected batch shape.");
+      return jsonResponse(
+        { error: "The vulnerability database returned an unreadable response." },
+        502,
+      );
+    }
+    return jsonResponse({ findings });
+  }
+
+  if (isExploitIntel) {
+    const cveId = normalizeCveId(body.cve);
+    if (!cveId) {
+      return jsonResponse(
+        { error: "Provide a valid CVE id, e.g. CVE-2024-3094." },
+        400,
+      );
+    }
+    let kev: ReturnType<typeof findKevEntry> = null;
+    let kevAvailable = false;
+    try {
+      const kevResponse = await fetch(
+        "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        { signal: AbortSignal.timeout(20000) },
+      );
+      if (kevResponse.ok) {
+        kev = findKevEntry(await kevResponse.json(), cveId);
+        kevAvailable = kev !== null;
+      }
+    } catch {
+      kevAvailable = false;
+    }
+    let epss: ReturnType<typeof parseEpssScore> = null;
+    let epssAvailable = false;
+    try {
+      const epssResponse = await fetch(
+        `https://api.first.org/data/v1/epss?cve=${cveId}`,
+        { signal: AbortSignal.timeout(20000) },
+      );
+      if (epssResponse.ok) {
+        epss = parseEpssScore(await epssResponse.json(), cveId);
+        epssAvailable = epss !== null;
+      }
+    } catch {
+      epssAvailable = false;
+    }
+    return jsonResponse({
+      intel: { cve: cveId, kev, kevAvailable, epss, epssAvailable },
+    });
+  }
 
   try {
     const response = await fetch(META_API_URL, {
