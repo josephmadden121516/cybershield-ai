@@ -30,6 +30,7 @@ Verify with `git log --format="%h %ad %s" --date=short`.
 | `5d9f95c` | Oct 30 | Spot-the-phish game (AI-dealt real/fake email rounds, scored) + hackathon manifest |
 | `5b28fcf` | Oct 30 | Animated attack-path kill-chain graph above simulations + submission pack (checklist, video script) |
 | `2e23cdd` | Oct 30 | Dependency manifest scans (OSV) + CISA KEV / EPSS exploit intel in the CVE section |
+| `982d48f` | Oct 30 | KEV threat watcher, badge studio with rotating QR, link safety checker (Safe Browsing + RDAP domain age + typosquat verdicts) + on-device scam-text analyzer |
 
 ## Pre-existing base (not claimed as hackathon work)
 
@@ -45,3 +46,6 @@ hackathon-built features: threat digest (`0ecf7c3`), CVE triage
 (`c2762b8`), patch generator (`f47fd00`), incident timeline (`0ecf7c3`),
 board briefing + AI polish (`74a2caa`, `0ecf7c3`), and the usage meter
 (`0ecf7c3`). The spot-the-phish game is demonstrated separately.
+The scam suite (link safety checker, scam-text analyzer) sits directly
+below the game as a self-guided follow-up: check the link, then read why
+the message is suspicious.
