@@ -3,6 +3,7 @@ import {
   requestPlainExplanation,
   requestSecurityAdvisor,
 } from '../lib/securityAdvisors'
+import { WAR_ROOM_SCENARIO, useWarRoomCue } from '../lib/warRoom'
 
 const MAX_TRIAGE_INPUT_LENGTH = 12000
 
@@ -21,15 +22,14 @@ export function CveTriageAssistant({ language }: CveTriageAssistantProps) {
   const [explanationLoading, setExplanationLoading] = useState(false)
   const [explanationError, setExplanationError] = useState('')
 
-  async function submitTriage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function runTriage(text: string) {
     if (loading) return
 
     setLoading(true)
     setResult('')
     setErrorMessage('')
     try {
-      const guidance = await requestSecurityAdvisor('cve', input, language)
+      const guidance = await requestSecurityAdvisor('cve', text, language)
       setResult(guidance)
     } catch (error) {
       console.error('Could not generate vulnerability triage guidance.', error)
@@ -44,6 +44,17 @@ export function CveTriageAssistant({ language }: CveTriageAssistantProps) {
       setLoading(false)
     }
   }
+
+  async function submitTriage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await runTriage(input)
+  }
+
+  useWarRoomCue('triage', () => {
+    const text = WAR_ROOM_SCENARIO.triageInput[language]
+    setInput(text)
+    return runTriage(text)
+  })
 
   async function explainGuidance() {
     if (explanationLoading || !result.trim()) return

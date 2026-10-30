@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useWarRoomCue } from '../lib/warRoom'
 import type { SecurityActivityEvent } from './SecurityActivityTimeline'
 import type { IncidentResponseProgress } from './incidentResponseProgress'
 import { requestNarrativePolish } from '../lib/securityAdvisors'
@@ -51,7 +52,7 @@ export function ExecutiveBoardBriefing({
   const [polishing, setPolishing] = useState(false)
   const [polishError, setPolishError] = useState('')
 
-  function generateBriefing() {
+  function generateBriefing(): string {
     const now = new Date()
     const timestamp = now.toISOString()
     const completedTasks = checklistTasks.filter((task) => task.completed)
@@ -140,19 +141,21 @@ export function ExecutiveBoardBriefing({
             : []),
         ]
 
-    setBriefing(lines.join('\n'))
+    const text = lines.join('\n')
+    setBriefing(text)
     setGeneratedAt(timestamp)
     setIncidentStorageWarning(incidentProgress.storageError)
+    return text
   }
 
-  async function polishBriefing() {
-    if (polishing || !briefing.trim()) return
+  async function polishText(text: string) {
+    if (polishing || !text.trim()) return
     setPolishing(true)
     setPolishError('')
     try {
-      const text = await requestNarrativePolish(briefing, language)
-      setPolished(text)
-      setPolishedFor(briefing)
+      const polishedText = await requestNarrativePolish(text, language)
+      setPolished(polishedText)
+      setPolishedFor(text)
     } catch (error) {
       console.error('Could not polish the briefing.', error)
       setPolishError(
@@ -166,6 +169,15 @@ export function ExecutiveBoardBriefing({
       setPolishing(false)
     }
   }
+
+  async function polishBriefing() {
+    await polishText(briefing)
+  }
+
+  useWarRoomCue('briefing', async () => {
+    const text = generateBriefing()
+    await polishText(text)
+  })
 
   function downloadBriefing() {
     const blob = new Blob([briefing], { type: 'text/markdown;charset=utf-8' })
@@ -189,6 +201,7 @@ export function ExecutiveBoardBriefing({
 
   return (
     <section
+      id="executive-board-briefing"
       className="content-card executive-board-briefing"
       aria-labelledby="executive-board-briefing-title"
     >

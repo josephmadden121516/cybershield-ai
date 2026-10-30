@@ -7,12 +7,22 @@ import {
   type RemediationPatch,
 } from '../lib/remediation'
 import { computeLineDiff } from '../../supabase/functions/_shared/diff'
+import { WAR_ROOM_SCENARIO, useWarRoomCue } from '../lib/warRoom'
 import './PatchGenerator.css'
 
 const MAX_SNIPPET_LENGTH = 12000
 
 interface PatchGeneratorProps {
   language: 'en' | 'es'
+}
+
+interface PatchRequestValues {
+  fileKind: RemediationFileKind
+  codeLanguage: string
+  vulnId: string
+  severity: (typeof severities)[number]
+  vulnType: string
+  snippet: string
 }
 
 const fileKinds: Array<{
@@ -60,8 +70,7 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
     [patch, originalSnippet]
   )
 
-  async function submitPatch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function runPatch(values: PatchRequestValues) {
     if (loading) return
 
     setLoading(true)
@@ -75,21 +84,21 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
     try {
       const result = await requestRemediationPatch(
         {
-          vulnerability: { id: vulnId, severity, type: vulnType },
-          codeSnippet: snippet,
-          fileKind,
-          codeLanguage,
+          vulnerability: { id: values.vulnId, severity: values.severity, type: values.vulnType },
+          codeSnippet: values.snippet,
+          fileKind: values.fileKind,
+          codeLanguage: values.codeLanguage,
         },
         language
       )
-      setOriginalSnippet(snippet.trim())
+      setOriginalSnippet(values.snippet.trim())
       setSubmittedRequest({
-        vulnId,
-        severity,
-        vulnType,
-        snippet: snippet.trim(),
-        fileKind,
-        codeLanguage,
+        vulnId: values.vulnId,
+        severity: values.severity,
+        vulnType: values.vulnType,
+        snippet: values.snippet.trim(),
+        fileKind: values.fileKind,
+        codeLanguage: values.codeLanguage,
       })
       setPatch(result)
     } catch (error) {
@@ -105,6 +114,28 @@ export function PatchGenerator({ language }: PatchGeneratorProps) {
       setLoading(false)
     }
   }
+
+  async function submitPatch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await runPatch({ fileKind, codeLanguage, vulnId, severity, vulnType, snippet })
+  }
+
+  useWarRoomCue('patch', () => {
+    const values: PatchRequestValues = {
+      fileKind: 'dockerfile',
+      codeLanguage,
+      vulnId: WAR_ROOM_SCENARIO.patch.vulnId,
+      severity: WAR_ROOM_SCENARIO.patch.severity,
+      vulnType: WAR_ROOM_SCENARIO.patch.vulnType[language],
+      snippet: WAR_ROOM_SCENARIO.patch.snippet,
+    }
+    setFileKind(values.fileKind)
+    setVulnId(values.vulnId)
+    setSeverity(values.severity)
+    setVulnType(values.vulnType)
+    setSnippet(values.snippet)
+    return runPatch(values)
+  })
 
   async function refinePatch() {
     if (refining || !patch || !submittedRequest || !followup.trim()) return

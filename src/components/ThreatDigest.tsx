@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { requestDailyDigest } from '../lib/securityAdvisors'
+import { useWarRoomCue } from '../lib/warRoom'
 import type { SecurityActivityEvent } from './SecurityActivityTimeline'
 import './ThreatDigest.css'
 
@@ -124,6 +125,12 @@ export function ThreatDigest({ language, reports, activity }: ThreatDigestProps)
   }
 
   const hasSource = reports.length > 0 || activity.length > 0
+
+  useWarRoomCue('digest', () => {
+    // Fresh accounts have nothing to summarize; the director moves on.
+    if (!hasSource) return
+    return generateDigest()
+  })
 
   return (
     <section

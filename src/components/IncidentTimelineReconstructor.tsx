@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { requestIncidentTimeline } from '../lib/securityAdvisors'
+import { WAR_ROOM_SCENARIO, useWarRoomCue } from '../lib/warRoom'
 import './IncidentTimelineReconstructor.css'
 
 const MAX_NOTES_LENGTH = 12000
@@ -17,15 +18,14 @@ export function IncidentTimelineReconstructor({
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function submitNotes(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function runTimeline(text: string) {
     if (loading) return
 
     setLoading(true)
     setTimeline('')
     setErrorMessage('')
     try {
-      const result = await requestIncidentTimeline(notes, language)
+      const result = await requestIncidentTimeline(text, language)
       setTimeline(result)
     } catch (error) {
       console.error('Could not reconstruct the timeline.', error)
@@ -40,6 +40,17 @@ export function IncidentTimelineReconstructor({
       setLoading(false)
     }
   }
+
+  async function submitNotes(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await runTimeline(notes)
+  }
+
+  useWarRoomCue('timeline', () => {
+    const text = WAR_ROOM_SCENARIO.timelineNotes[language]
+    setNotes(text)
+    return runTimeline(text)
+  })
 
   return (
     <section

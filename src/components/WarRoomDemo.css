@@ -1,0 +1,134 @@
+.war-room-script {
+  list-style: none;
+  margin: 16px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.war-room-script li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-inner, #f2f5f7);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.war-room-script-number {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1f3a4d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.war-room-note {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.war-room-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 60;
+  background: #17242e;
+  color: #eef3f6;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.war-room-bar-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.war-room-counter {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  background: #0f1a23;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.war-room-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.war-room-text strong {
+  font-size: 15px;
+}
+
+.war-room-text span {
+  font-size: 13px;
+  opacity: 0.88;
+}
+
+.war-room-clock {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.war-room-progress {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.war-room-segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #33454e;
+}
+
+.war-room-segment.done {
+  background: #58b09c;
+}
+
+.war-room-segment.active {
+  background: #e8b64c;
+}
+
+.war-room-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.war-room-controls .secondary-button {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.war-room-spotlight {
+  outline: 3px solid #e8b64c;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .war-room-text span {
+    display: none;
+  }
+}

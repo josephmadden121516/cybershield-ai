@@ -25,6 +25,7 @@ import { PhishDrillGenerator } from './components/PhishDrillGenerator'
 import { IncidentTimelineReconstructor } from './components/IncidentTimelineReconstructor'
 import { UsageMeter } from './components/UsageMeter'
 import { ThreatDigest } from './components/ThreatDigest'
+import { WarRoomDemo } from './components/WarRoomDemo'
 import { getSampleActivityEvents, getSampleReports } from './lib/demoData'
 import { assertWithinDailyBudget, trackUsage } from './lib/usageMeter'
 import { requestPlainExplanation } from './lib/securityAdvisors'
@@ -2569,6 +2570,8 @@ const securityGrade =
         <PhishDrillGenerator language={assistantLanguage} />
 
         <IncidentTimelineReconstructor language={assistantLanguage} />
+
+        <WarRoomDemo language={assistantLanguage} />
 
          <section id="faq" className="panel" aria-labelledby="faq-heading" style={{ marginTop: 18, padding: 20 }}>
           <h2 id="faq-heading" style={{ marginTop: 0 }}>Frequently asked questions</h2>
