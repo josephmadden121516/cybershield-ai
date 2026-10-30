@@ -1,0 +1,91 @@
+.phishing-game-start p {
+  margin-top: 0;
+}
+
+.phishing-game-status {
+  font-style: italic;
+}
+
+.phishing-game-error {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.phishing-game-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 700;
+  margin: 4px 0 12px;
+}
+
+.phishing-game-score {
+  font-weight: 400;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.phishing-game-email {
+  background: var(--card-inner, #f2f5f7);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.phishing-game-field {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.phishing-game-field span {
+  font-weight: 700;
+}
+
+.phishing-game-body {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.phishing-game-vote {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.phishing-game-reveal {
+  border-top: 1px solid var(--border-color, #dce7eb);
+  padding-top: 12px;
+}
+
+.phishing-game-reveal ul {
+  margin: 8px 0 14px;
+  padding-left: 20px;
+}
+
+.phishing-game-right {
+  color: #1e7e34;
+  font-weight: 700;
+}
+
+.phishing-game-wrong {
+  color: #b3261e;
+  font-weight: 700;
+}
+
+.phishing-game-final {
+  text-align: left;
+}
+
+.phishing-game-final-score {
+  font-size: 40px;
+  font-weight: 800;
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.phishing-game-disclaimer {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 0;
+}

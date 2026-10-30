@@ -22,6 +22,7 @@ import { PatchGenerator } from './components/PatchGenerator'
 import { AttackTreeSimulator } from './components/AttackTreeSimulator'
 import { SyntheticAuditLab } from './components/SyntheticAuditLab'
 import { PhishDrillGenerator } from './components/PhishDrillGenerator'
+import { PhishingGame } from './components/PhishingGame'
 import { IncidentTimelineReconstructor } from './components/IncidentTimelineReconstructor'
 import { UsageMeter } from './components/UsageMeter'
 import { ThreatDigest } from './components/ThreatDigest'
@@ -2568,6 +2569,8 @@ const securityGrade =
         <SyntheticAuditLab language={assistantLanguage} />
 
         <PhishDrillGenerator language={assistantLanguage} />
+
+        <PhishingGame language={assistantLanguage} />
 
         <IncidentTimelineReconstructor language={assistantLanguage} />
 

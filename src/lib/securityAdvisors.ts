@@ -229,6 +229,76 @@ export async function requestPhishDrill(
   return data.drill
 }
 
+export interface PhishGameRound {
+  subject: string
+  sender: string
+  body: string
+  isPhish: boolean
+  verdict: string
+  redFlags: string[]
+}
+
+export interface PhishGamePack {
+  rounds: PhishGameRound[]
+}
+
+function isPhishGameRound(value: unknown): value is PhishGameRound {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    isNonEmptyString(record.subject) &&
+    isNonEmptyString(record.sender) &&
+    isNonEmptyString(record.body) &&
+    typeof record.isPhish === 'boolean' &&
+    isNonEmptyString(record.verdict) &&
+    isStringArray(record.redFlags)
+  )
+}
+
+function isPhishGamePack(value: unknown): value is PhishGamePack {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  return (
+    Array.isArray(record.rounds) &&
+    record.rounds.length > 0 &&
+    record.rounds.every(isPhishGameRound)
+  )
+}
+
+export async function requestPhishingGamePack(
+  language: 'en' | 'es',
+  rounds = 5
+): Promise<PhishGamePack> {
+  if (!Number.isInteger(rounds) || rounds < 3 || rounds > 8) {
+    throw new Error('Rounds must be a whole number from 3 to 8.')
+  }
+  assertWithinDailyBudget()
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(
+      'AI guidance is not configured. Check the Supabase environment settings.'
+    )
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-threat', {
+    body: {
+      task: 'phishgame',
+      rounds,
+      language,
+    },
+  })
+
+  if (error) throw error
+  if (!isPhishGamePack(data?.pack)) {
+    throw new Error('The AI service returned an unreadable game.')
+  }
+  trackUsage(data)
+  return data.pack
+}
+
 export async function requestDailyDigest(
   sourceText: string,
   language: 'en' | 'es'
