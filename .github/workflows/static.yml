@@ -1,4 +1,4 @@
-name: Deploy CyberShield AI to GitHub Pages
+name: Deploy ShieldPocket AI to GitHub Pages
 
 on:
   push:
