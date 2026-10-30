@@ -3,6 +3,7 @@ import {
   requestAttackTreeSimulation,
   type AttackTreeSimulation,
 } from '../lib/securityAdvisors'
+import { AttackPathGraph } from './AttackPathGraph'
 import './AttackTreeSimulator.css'
 
 const MAX_ASSETS_LENGTH = 12000
@@ -216,6 +217,8 @@ export function AttackTreeSimulator({ language }: AttackTreeSimulatorProps) {
           </p>
 
           <h3>{simulation.scenarioTitle}</h3>
+
+          <AttackPathGraph simulation={simulation} language={language} />
 
           {simulation.attackPaths.map((path, index) => (
             <div key={index} className="attack-simulator-path">

@@ -1,0 +1,40 @@
+.attack-path-graph {
+  margin: 12px 0 4px;
+}
+
+.attack-path-graph svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.attack-path-graph figcaption {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 6px;
+}
+
+.attack-path-lane-label {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #1f3a4d;
+}
+
+.attack-path-step-number {
+  font-size: 13px;
+  font-weight: 800;
+  fill: #ffffff;
+  opacity: 0.9;
+}
+
+.attack-path-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #ffffff;
+}
+
+.attack-path-step-sub {
+  font-size: 10px;
+  fill: #ffffff;
+  opacity: 0.85;
+}
