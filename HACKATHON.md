@@ -27,7 +27,7 @@ Verify with `git log --format="%h %ad %s" --date=short`.
 | `f47fd00` | Oct 29 | Automated remediation patch generator (Dockerfile/Terraform/K8s/app code), attack-tree simulator, synthetic audit lab, GDPR / PCI DSS / EU AI Act compliance expansion |
 | `c2762b8` | Oct 28 | Compliance mapper, CVE triage assistant |
 | `74a2caa` | Oct 28 | Executive board briefing (local generation, markdown export, print-to-PDF) |
-| HEAD (this submission) | Oct 30 | Spot-the-phish game (AI-dealt real/fake email rounds, scored) + this manifest |
+| `5d9f95c` | Oct 30 | Spot-the-phish game (AI-dealt real/fake email rounds, scored) + hackathon manifest |
 
 ## Pre-existing base (not claimed as hackathon work)
 
