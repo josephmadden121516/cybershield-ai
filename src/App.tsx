@@ -747,7 +747,10 @@ const [securityPlanMessage, setSecurityPlanMessage] = useState('')
 const [securityPlanLoading, setSecurityPlanLoading] = useState(false)
 const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
   try {
-    const saved = localStorage.getItem('cybershield-completed-tasks')
+    // Fall back to the pre-rename key once so existing users keep progress.
+    const saved =
+      localStorage.getItem('shieldpocket-completed-tasks') ??
+      localStorage.getItem('cybershield-completed-tasks')
     return saved ? (JSON.parse(saved) as number[]) : []
   } catch {
     return []
@@ -1317,7 +1320,7 @@ if (suspiciousUrl) {
   useEffect(() => {
     try {
       localStorage.setItem(
-        'cybershield-completed-tasks',
+        'shieldpocket-completed-tasks',
         JSON.stringify(completedTasks)
       )
     } catch {
@@ -1366,7 +1369,10 @@ if (suspiciousUrl) {
         // browser's existing checklist, preserving the user's current work.
         let initialTasks: number[] = []
         try {
-          const saved = localStorage.getItem('cybershield-completed-tasks')
+          // Fall back to the pre-rename key once so existing users keep progress.
+          const saved =
+            localStorage.getItem('shieldpocket-completed-tasks') ??
+            localStorage.getItem('cybershield-completed-tasks')
           const parsed: unknown = saved ? JSON.parse(saved) : []
           if (Array.isArray(parsed)) {
             initialTasks = [...new Set(
